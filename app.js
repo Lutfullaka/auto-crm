@@ -117,9 +117,8 @@ const renderView = (viewId) => {
         let pSales = totalLimit ? Math.round((totalSales / totalLimit) * 100) : 0;
 
         html = `
-            <div class="dashboard-banner mb-6 mt-4" style="width: 100%; border-radius: 16px; overflow: hidden; background: #85c23a; box-shadow: 0 10px 30px rgba(133, 194, 58, 0.15); display: flex; justify-content: center; align-items: center; min-height: 180px;">
-                <!-- Foydalanuvchi quyidagi nomdagi rasmni loyiha papkasiga joylashi kerak -->
-                <img src="banner.png" alt="Leapmotor Uzbekistan" style="width: 100%; height: 100%; max-height: 250px; object-fit: cover; mix-blend-mode: normal;">
+            <div class="view-header mb-4 mt-2">
+                <h1>Asosiy Boshqaruv Paneli</h1>
             </div>
             
             <div class="stats-grid mb-6">
