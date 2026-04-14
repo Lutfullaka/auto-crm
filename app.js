@@ -8,6 +8,7 @@ const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 // --- Holat (State) ---
 let currentUser = null;
 let globalDB = { users: [], dealerships: [], cars: [], sales: [] };
+let selectedCars = new Set();
 
 // --- Bazani yangilash ---
 const refreshDB = async () => {
@@ -73,6 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             item.classList.add('active');
+            selectedCars.clear(); // Oynaga o'tganda tanlanganlar tozalanadi
             refreshDataAndRender(item.getAttribute('data-view')); // Har gal bosganda bazani yangilaymiz!
         });
     });
@@ -156,6 +158,7 @@ const renderView = (viewId) => {
             <div class="view-header">
                 <h1>Xitoydan kelayotgan</h1>
                 <div class="flex-gap">
+                    <button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>
                     <button class="btn btn-secondary" onclick="downloadShablon()">📄 Shablon Yuklash (Excel)</button>
                     <label class="btn btn-secondary" style="margin: 0; cursor: pointer;">
                         <i class="ph ph-upload-simple"></i> Exceldan Yuklash
@@ -168,6 +171,7 @@ const renderView = (viewId) => {
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 40px;"><input type="checkbox" onclick="toggleAllCars(event, 'ordered')"></th>
                             <th>Model (Komp)</th>
                             <th>Kuzov/Salon</th>
                             <th>Zavod Narx</th>
@@ -178,6 +182,7 @@ const renderView = (viewId) => {
                     <tbody>
                         ${chinaCars.map(c => `
                             <tr>
+                                <td><input type="checkbox" class="car-select" value="${c.id}" ${selectedCars.has(c.id) ? 'checked' : ''} onchange="toggleCarSelection(${c.id}, event)"></td>
                                 <td><strong>${c.model}</strong> (${c.trim || 'Basic'})</td>
                                 <td>${c.color_ext || '-'} / ${c.color_int || '-'}</td>
                                 <td>$${c.factory_price || 0}</td>
@@ -185,7 +190,7 @@ const renderView = (viewId) => {
                                 <td><button class="btn btn-secondary btn-sm" onclick="moveToCustoms(${c.id})">Bojxonaga tushdi</button></td>
                             </tr>
                         `).join('')}
-                        ${chinaCars.length === 0 ? "<tr><td colspan='5'>Buyurtmalar yo'q.</td></tr>" : ""}
+                        ${chinaCars.length === 0 ? "<tr><td colspan='6'>Buyurtmalar yo'q.</td></tr>" : ""}
                     </tbody>
                 </table>
             </div>
@@ -199,6 +204,7 @@ const renderView = (viewId) => {
             <div class="view-header">
                 <h1>Bojxona (Tamojnya) Ombordagi Mashinalar</h1>
                 <div class="flex-gap">
+                    <button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>
                     <button class="btn btn-secondary" onclick="downloadShablon()">📄 Shablon Yuklash (Excel)</button>
                     <label class="btn btn-secondary" style="margin: 0; cursor: pointer;">
                         <i class="ph ph-upload-simple"></i> Bojxona Omboriga Exceldan qabul
@@ -210,6 +216,7 @@ const renderView = (viewId) => {
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 40px;"><input type="checkbox" onclick="toggleAllCars(event, 'customs')"></th>
                             <th>Model</th>
                             <th>VIN Kod</th>
                             <th>Narx (Sebestoimost)</th>
@@ -220,6 +227,7 @@ const renderView = (viewId) => {
                     <tbody>
                         ${customCars.map(c => `
                             <tr>
+                                <td><input type="checkbox" class="car-select" value="${c.id}" ${selectedCars.has(c.id) ? 'checked' : ''} onchange="toggleCarSelection(${c.id}, event)"></td>
                                 <td><strong>${c.model}</strong></td>
                                 <td><span style="font-family: monospace;">${c.vin || 'VIN kiritilmagan'}</span></td>
                                 <td>$${c.final_cost || 0}</td>
@@ -286,11 +294,15 @@ const renderView = (viewId) => {
         html = `
              <div class="view-header">
                 <h1>${currentUser.role === 'dealer' ? "Mening Omborim (V nalichii)" : "Barcha Dilerlar Ombori"}</h1>
+                <div class="flex-gap">
+                    ${currentUser.role === 'admin' ? `<button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>` : ""}
+                </div>
             </div>
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 40px;"><input type="checkbox" onclick="toggleAllCars(event, 'instock')"></th>
                             <th>Model (Yoqilg'i)</th>
                             <th>VIN Kod</th>
                             <th>Rangi (Kuzov)</th>
@@ -302,6 +314,7 @@ const renderView = (viewId) => {
                     <tbody>
                         ${myCars.map(c => `
                             <tr>
+                                <td><input type="checkbox" class="car-select" value="${c.id}" ${selectedCars.has(c.id) ? 'checked' : ''} onchange="toggleCarSelection(${c.id}, event)"></td>
                                 <td><strong>${c.model}</strong> (${c.fuel || 'N/A'})</td>
                                 <td><span style="font-family: monospace;">${c.vin}</span></td>
                                 <td>${c.color_ext || '-'}</td>
@@ -585,6 +598,46 @@ window.openSaleModal = (carId) => {
         alert("Sotuv omadli bo'ldi! Avto ombordan o'chirildi.");
         await refreshDataAndRender('inventory');
     });
+}
+
+window.toggleCarSelection = (carId, event) => {
+    if (event.target.checked) selectedCars.add(carId);
+    else selectedCars.delete(carId);
+}
+
+window.toggleAllCars = (event, statusType) => {
+    const isChecked = event.target.checked;
+    const carsList = globalDB.cars.filter(c => c.status === statusType);
+    
+    if (statusType === 'instock' && currentUser.role === 'dealer') {
+        // qisqartiish
+    }
+    
+    carsList.forEach(c => {
+        if(isChecked) selectedCars.add(c.id);
+        else selectedCars.delete(c.id);
+    });
+    
+    document.querySelectorAll('.car-select').forEach(cb => cb.checked = isChecked);
+}
+
+window.deleteSelected = async () => {
+    if (selectedCars.size === 0) {
+        alert("O'chirish uchun avtomobil belgilanmagan!");
+        return;
+    }
+    if(confirm(selectedCars.size + " ta belgilangan qatorni butunlay o'chirib yuborasizmi?")) {
+        const idArray = Array.from(selectedCars);
+        const { error } = await _supabase.from('cars').delete().in('id', idArray);
+        if (error) {
+            alert("Xatolik: " + error.message);
+        } else {
+            alert("Muvaffaqiyatli o'chirildi!");
+            selectedCars.clear();
+            const currentView = document.querySelector('.nav-item.active').getAttribute('data-view');
+            await refreshDataAndRender(currentView);
+        }
+    }
 }
 
 window.closeModal = (id) => {
