@@ -7,17 +7,18 @@ const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 // --- Holat (State) ---
 let currentUser = null;
-let globalDB = { users: [], dealerships: [], cars: [], sales: [] };
+let globalDB = { users: [], dealerships: [], cars: [], sales: [], customers: [] };
 let selectedCars = new Set();
 
 // --- Bazani yangilash ---
 const refreshDB = async () => {
     try {
-        const [u, d, c, s] = await Promise.all([
+        const [u, d, c, s, cust] = await Promise.all([
             _supabase.from('users').select('*'),
             _supabase.from('dealerships').select('*'),
             _supabase.from('cars').select('*').order('id', {ascending: false}),
-            _supabase.from('sales').select('*').order('date', {ascending: false})
+            _supabase.from('sales').select('*').order('date', {ascending: false}),
+            _supabase.from('customers').select('*').order('id', {ascending: false})
         ]);
         
         if (u.error) alert("Supabase ga ulanishda xato: " + u.error.message);
@@ -26,6 +27,7 @@ const refreshDB = async () => {
         globalDB.dealerships = d.data || [];
         globalDB.cars = c.data || [];
         globalDB.sales = s.data || [];
+        globalDB.customers = cust.data || [];
     } catch (err) {
         alert("Tarmoqda xatolik yoki URL xato: " + err.message);
     }
@@ -542,6 +544,42 @@ const renderView = (viewId) => {
             </div>
         `;
     }
+    else if (viewId === 'customers') {
+        const customers = db.customers || [];
+        html = `
+            <div class="view-header">
+                <h1>Mijozlar Bazasi</h1>
+                <div class="flex-gap">
+                    <!-- Kelajakda qo'shish moduli bo'ladi -->
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>F.I.Sh</th>
+                            <th>Telefon Raqami</th>
+                            <th>Pasport JSHSHIR</th>
+                            <th>Manzili</th>
+                            <th>Ro'yxatdan O'tgan Sana</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${customers.map(c => `
+                            <tr>
+                                <td><strong>${c.full_name}</strong></td>
+                                <td>${c.phone}</td>
+                                <td>${c.passport || '-'}</td>
+                                <td>${c.address || '-'}</td>
+                                <td style="color:var(--text-muted);">${new Date(c.created_at).toLocaleDateString('uz-UZ')}</td>
+                            </tr>
+                        `).join('')}
+                        ${customers.length === 0 ? "<tr><td colspan='5'>Hali mijozlar qismini to'ldirmagansiz.</td></tr>" : ""}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
 
     area.innerHTML = html;
 };
@@ -726,9 +764,24 @@ window.openSaleModal = (carId) => {
                 <div class="mb-4 text-muted">Sotilayotgan avto: <strong>${car.model} (VIN: ${car.vin})</strong></div>
                 <form id="new-sale-form">
                     <div class="input-group">
+                        <label>Telefon raqam</label>
+                        <input type="text" id="sale-phone" required placeholder="+998901234567" oninput="window.checkCustomerPhone()">
+                    </div>
+                    <div class="input-group mt-2">
                         <label>Mijoz F.I.Sh</label>
                         <input type="text" id="sale-customer" required placeholder="To'liq ismi...">
                     </div>
+                    <div class="input-group mt-2">
+                        <label>Pasport seriyasi / JSHSHIR</label>
+                        <input type="text" id="sale-passport" placeholder="AA1234567 / 31234567890123">
+                    </div>
+                    <div class="input-group mt-2">
+                        <label>Manzili (Ixtiyoriy)</label>
+                        <input type="text" id="sale-address" placeholder="Toshkent, Yunusobod...">
+                    </div>
+                    
+                    <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 15px 0;">
+                    
                     <div class="input-group mt-2">
                         <label>To'lov Turi</label>
                         <select id="sale-type" required>
@@ -745,7 +798,7 @@ window.openSaleModal = (carId) => {
                     </div>
                     <div class="text-right mt-4 flex-gap" style="justify-content: flex-end;">
                         <button type="button" class="btn btn-secondary" onclick="closeModal('sale-modal')">Oqaga</button>
-                        <button type="submit" class="btn btn-primary">Ombordan chiqarish va Sotish</button>
+                        <button type="submit" class="btn btn-primary">Savdoni tasdiqlash va PDF Shartnoma</button>
                     </div>
                 </form>
             </div>
@@ -755,17 +808,41 @@ window.openSaleModal = (carId) => {
     
     document.getElementById('new-sale-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const customer = document.getElementById('sale-customer').value;
+        
+        const phone = document.getElementById('sale-phone').value;
+        const name = document.getElementById('sale-customer').value;
+        const passport = document.getElementById('sale-passport').value;
+        const address = document.getElementById('sale-address').value;
         const type = document.getElementById('sale-type').value;
         const price = parseInt(document.getElementById('sale-price').value);
         
-        // 1. Update Car Status
+        let targetCustomer = globalDB.customers.find(c => c.phone === phone);
+        
+        // 1. Mijozni tekshiramiz va saqlaymiz
+        if (!targetCustomer) {
+            targetCustomer = {
+                // id will be generated by Supabase
+                full_name: name,
+                phone: phone,
+                passport: passport,
+                address: address,
+                dealer_id: currentUser.dealership_id || null
+            };
+            const cRes = await _supabase.from('customers').insert(targetCustomer).select();
+            if(cRes.error) {
+                alert("Mijozni saqlashda xato: " + cRes.error.message);
+                return;
+            }
+            if(cRes.data && cRes.data.length > 0) targetCustomer = cRes.data[0];
+        }
+        
+        // 2. Update Car Status
         await _supabase.from('cars').update({
             status: 'sold',
             price: price
         }).eq('id', carId);
 
-        // 2. Insert Sale record
+        // 3. Insert Sale record
         const { error } = await _supabase.from('sales').insert({
             id: Date.now() + Math.floor(Math.random() * 1000000),
             car_id: car.id,
@@ -773,16 +850,107 @@ window.openSaleModal = (carId) => {
             car_model: car.model,
             dealer_id: currentUser.dealership_id || 1, // Admin bo'lsa diler 1 ni oladi
             payment_type: type,
-            customer_name: customer,
+            customer_name: targetCustomer.full_name,
             price: price
         });
         
         if(error) alert("Sotuvni qo'shishda xato: " + error.message);
         
         closeModal('sale-modal');
-        alert("Sotuv omadli bo'ldi! Avto ombordan o'chirildi.");
+        alert("Sotuv omadli bo'ldi!");
+        
+        // PDF Generatsiya!
+        generateInvoicePDF({
+            car_model: car.model,
+            vin: car.vin,
+            price: price,
+            date: new Date().toLocaleDateString('uz-UZ'),
+            customer_name: targetCustomer.full_name,
+            payment_type: type === 'cash' ? "Naqd To'lov" : "Nasiya (Bo'lib to'lash)"
+        });
+        
         await refreshDataAndRender('inventory');
     });
+}
+
+window.checkCustomerPhone = () => {
+    const el = document.getElementById('sale-phone');
+    if (!el) return;
+    const val = el.value.trim();
+    if(val.length > 5) {
+        let exists = globalDB.customers.find(c => c.phone.includes(val));
+        if (exists) {
+            document.getElementById('sale-customer').value = exists.full_name;
+            document.getElementById('sale-passport').value = exists.passport || '';
+            document.getElementById('sale-address').value = exists.address || '';
+        }
+    }
+}
+
+window.generateInvoicePDF = (sale) => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(16, 185, 129); // Green tint
+    doc.text("EVOLUTION MOTORS", 105, 20, { align: "center" });
+    
+    doc.setFontSize(14);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Rasmiy To'lov Cheki / Shartnoma", 105, 30, { align: "center" });
+    
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 35, 190, 35);
+    
+    // Customer info
+    doc.setFontSize(11);
+    doc.setTextColor(50, 50, 50);
+    doc.text("Mijoz F.I.Sh: ", 20, 50);
+    doc.setFont("helvetica", "bold");
+    doc.text(sale.customer_name, 60, 50);
+    
+    doc.setFont("helvetica", "normal");
+    doc.text("Sana: ", 20, 60);
+    doc.text(sale.date, 60, 60);
+    
+    // Order info box
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(20, 70, 170, 60, 3, 3, "F");
+    
+    doc.text("Sotib olingan avtomobil:", 25, 80);
+    doc.setFont("helvetica", "bold");
+    doc.text(sale.car_model, 85, 80);
+    
+    doc.setFont("helvetica", "normal");
+    doc.text("VIN Kodi:", 25, 95);
+    doc.setFont("courier", "bold");
+    doc.text(sale.vin, 85, 95);
+    
+    doc.setFont("helvetica", "normal");
+    doc.text("To'lov turi:", 25, 110);
+    doc.text(sale.payment_type, 85, 110);
+    
+    doc.text("Jami summa:", 25, 125);
+    doc.setFontSize(14);
+    doc.setTextColor(16, 185, 129);
+    doc.text("$" + sale.price.toLocaleString(), 85, 125);
+    
+    // Bottom
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("--------------------------------------------", 20, 160);
+    doc.text("Imzo (Mijoz):", 20, 165);
+    
+    doc.text("--------------------------------------------", 130, 160);
+    doc.text("Imzo (Sotuvchi):", 130, 165);
+    
+    doc.setFontSize(9);
+    doc.setTextColor(130, 130, 130);
+    doc.text("Ushbu chek AutoCRM tizimi tomonidan avtomatik generatsiya qilindi.", 105, 190, { align: "center" });
+
+    doc.save("Shartnoma_" + sale.customer_name.replace(/ /g, "_") + ".pdf");
 }
 
 window.toggleCarSelection = (carId, event) => {
