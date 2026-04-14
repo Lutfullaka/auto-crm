@@ -154,7 +154,7 @@ const renderView = (viewId) => {
         const chinaCars = db.cars.filter(c => c.status === 'ordered');
         html = `
             <div class="view-header">
-                <h1>Xitoy Buyurtmalari</h1>
+                <h1>Xitoydan kelayotgan</h1>
                 <div class="flex-gap">
                     <button class="btn btn-secondary" onclick="downloadShablon()">📄 Shablon Yuklash (Excel)</button>
                     <label class="btn btn-secondary" style="margin: 0; cursor: pointer;">
@@ -256,7 +256,7 @@ const renderView = (viewId) => {
                             <th>Rangi (Kuzov)</th>
                             ${currentUser.role === 'admin' ? "<th>Diler Nomi</th>" : ""}
                             <th>Holati</th>
-                            ${currentUser.role === 'dealer' ? "<th>Savdo qilish</th>" : ""}
+                            <th>Savdo qilish</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -267,7 +267,7 @@ const renderView = (viewId) => {
                                 <td>${c.color_ext || '-'}</td>
                                 ${currentUser.role === 'admin' ? `<td>${db.dealerships.find(d => 'dealer_'+d.id === c.location)?.name || 'Noma\`lum'}</td>` : ""}
                                 <td><span class="badge status-instock">Sotuvda mavjud</span></td>
-                                ${currentUser.role === 'dealer' ? `<td><button class="btn btn-primary" onclick="openSaleModal(${c.id})"><i class="ph ph-shopping-cart"></i> Sotish qatorini ochish</button></td>` : ""}
+                                <td><button class="btn btn-primary" onclick="openSaleModal(${c.id})"><i class="ph ph-shopping-cart"></i> Sotish qatorini ochish</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -533,7 +533,7 @@ window.openSaleModal = (carId) => {
             car_id: car.id,
             vin: car.vin,
             car_model: car.model,
-            dealer_id: currentUser.dealership_id,
+            dealer_id: currentUser.dealership_id || 1, // Admin bo'lsa diler 1 ni oladi
             payment_type: type,
             customer_name: customer,
             price: price
