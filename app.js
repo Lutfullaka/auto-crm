@@ -11,17 +11,23 @@ let globalDB = { users: [], dealerships: [], cars: [], sales: [] };
 
 // --- Bazani yangilash ---
 const refreshDB = async () => {
-    const [u, d, c, s] = await Promise.all([
-        _supabase.from('users').select('*'),
-        _supabase.from('dealerships').select('*'),
-        _supabase.from('cars').select('*').order('id', {ascending: false}),
-        _supabase.from('sales').select('*').order('date', {ascending: false})
-    ]);
-    
-    globalDB.users = u.data || [];
-    globalDB.dealerships = d.data || [];
-    globalDB.cars = c.data || [];
-    globalDB.sales = s.data || [];
+    try {
+        const [u, d, c, s] = await Promise.all([
+            _supabase.from('users').select('*'),
+            _supabase.from('dealerships').select('*'),
+            _supabase.from('cars').select('*').order('id', {ascending: false}),
+            _supabase.from('sales').select('*').order('date', {ascending: false})
+        ]);
+        
+        if (u.error) alert("Supabase ga ulanishda xato: " + u.error.message);
+        
+        globalDB.users = u.data || [];
+        globalDB.dealerships = d.data || [];
+        globalDB.cars = c.data || [];
+        globalDB.sales = s.data || [];
+    } catch (err) {
+        alert("Tarmoqda xatolik yoki URL xato: " + err.message);
+    }
 };
 
 const refreshDataAndRender = async (viewId) => {
