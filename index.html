@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoCRM - Boshqaruv Tizimi</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SheetJS for Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+    
+    <!-- LOBBY / LOGIN SCREEN -->
+    <div id="login-screen" class="screen full-center">
+        <div class="glass-panel login-box">
+            <div class="login-header">
+                <i class="ph ph-car-profile logo-icon"></i>
+                <h2>AutoCRM</h2>
+                <p>Tizimga kirish</p>
+            </div>
+            <form id="login-form">
+                <div class="input-group">
+                    <label>Email või ID</label>
+                    <div class="input-icon-wrapper">
+                        <i class="ph ph-user"></i>
+                        <input type="email" id="login-email" placeholder="admin@autocrm.uz" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Parol</label>
+                    <div class="input-icon-wrapper">
+                        <i class="ph ph-lock-key"></i>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-full mt-4">Kirish <i class="ph ph-arrow-right"></i></button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="dashboard-screen" class="screen hidden">
+        
+        <!-- SIDEBAR -->
+        <aside class="sidebar glass-panel-side">
+            <div class="sidebar-header">
+                <i class="ph ph-car-profile logo-icon"></i>
+                <h2>AutoCRM</h2>
+            </div>
+            <div class="user-badge mt-4 mb-4">
+                <div class="avatar"><i class="ph ph-user"></i></div>
+                <div class="user-info">
+                    <span id="current-user-name" class="name">Bosh Admin</span>
+                    <span id="current-user-role" class="role">Bosh ofis</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <!-- Admin links -->
+                <div class="nav-section admin-only">
+                    <span>Boshqaruv</span>
+                    <a href="#" class="nav-item active" data-view="dashboard">
+                        <i class="ph ph-squares-four"></i> Asosiy panel
+                    </a>
+                    <a href="#" class="nav-item" data-view="orders">
+                        <i class="ph ph-factory"></i> Xitoy Buyurtmalari
+                    </a>
+                    <a href="#" class="nav-item" data-view="customs">
+                        <i class="ph ph-truck"></i> Bojxona (Tamojnya)
+                    </a>
+                    <a href="#" class="nav-item" data-view="dealers">
+                        <i class="ph ph-storefront"></i> Dilerlar
+                    </a>
+                </div>
+                
+                <!-- Dealer links -->
+                <div class="nav-section">
+                    <span>Ombor va Sotuv</span>
+                    <a href="#" class="nav-item" data-view="inventory">
+                        <i class="ph ph-garage"></i> Mening Omborim
+                    </a>
+                    <a href="#" class="nav-item" data-view="sales">
+                        <i class="ph ph-receipt"></i> Sotuvlar
+                    </a>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <a href="#" id="logout-btn" class="nav-item text-danger">
+                    <i class="ph ph-sign-out"></i> Tizimdan chiqish
+                </a>
+            </div>
+        </aside>
+
+        <!-- MAIN LAYOUT -->
+        <main class="main-content">
+            <!-- TOPBAR -->
+            <header class="topbar">
+                <div class="search-bar glass-input">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" placeholder="Avtomobil VIN yoki Model qidirish...">
+                </div>
+                <div class="topbar-actions">
+                    <button class="icon-btn"><i class="ph ph-bell"></i></button>
+                    <button class="icon-btn" id="theme-toggle"><i class="ph ph-sun"></i></button>
+                </div>
+            </header>
+
+            <!-- DYNAMIC CONTENT AREA -->
+            <div id="content-area" class="content-wrapper scrollable">
+                <!-- Views will be dynamically injected here via JS -->
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
