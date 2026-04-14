@@ -238,6 +238,46 @@ const renderView = (viewId) => {
             </div>
         `;
     }
+    else if (viewId === 'dealers') {
+        html = `
+            <div class="view-header">
+                <h1>Dilerlar Kesimida Hisobot</h1>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Diler Nomi</th>
+                            <th>Ombordagi Mashinalar (V Nalichii)</th>
+                            <th>Ombor Qiymati (Sebestoimost)</th>
+                            <th>Sotilgan Mashinalar</th>
+                            <th>Jami Sotuv Aylanmasi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${db.dealerships.map(d => {
+                            const carsInStock = db.cars.filter(c => c.location === 'dealer_' + d.id && c.status === 'instock');
+                            const totalStockValue = carsInStock.reduce((sum, c) => sum + (c.final_cost || 0), 0);
+                            
+                            const soldCars = db.sales.filter(s => s.dealer_id === d.id);
+                            const totalSalesValue = soldCars.reduce((sum, s) => sum + (s.price || 0), 0);
+
+                            return `
+                                <tr>
+                                    <td><strong>🏢 ${d.name}</strong></td>
+                                    <td><span class="badge status-instock">${carsInStock.length} ta</span></td>
+                                    <td>$${totalStockValue.toLocaleString()}</td>
+                                    <td><span class="badge status-ordered">${soldCars.length} ta sotildi</span></td>
+                                    <td><strong>$${totalSalesValue.toLocaleString()}</strong></td>
+                                </tr>
+                            `;
+                        }).join('')}
+                        ${db.dealerships.length === 0 ? "<tr><td colspan='5'>Dilerlar ro'yxati bo'sh!</td></tr>" : ""}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
     else if (viewId === 'inventory') {
         const dealerId = currentUser.role === 'dealer' ? currentUser.dealership_id : null;
         let myCars = db.cars.filter(c => c.status === 'instock');
