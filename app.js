@@ -172,10 +172,13 @@ const renderView = (viewId) => {
                     <thead>
                         <tr>
                             <th style="width: 40px;"><input type="checkbox" onclick="toggleAllCars(event, 'ordered')"></th>
-                            <th>Model (Komp)</th>
-                            <th>Kuzov/Salon</th>
-                            <th>Zavod Narx</th>
-                            <th>Holati</th>
+                            <th>Avtomobil (Marka, Model)</th>
+                            <th>Komp (Trim)</th>
+                            <th>Yoqilg'i</th>
+                            <th>Rangi (Tashqi/Ichki)</th>
+                            <th>VIN Kod</th>
+                            <th>Zavod Narxi</th>
+                            <th>Yakuniy Sebestoimost</th>
                             <th>Amaliyot</th>
                         </tr>
                     </thead>
@@ -183,10 +186,13 @@ const renderView = (viewId) => {
                         ${chinaCars.map(c => `
                             <tr>
                                 <td><input type="checkbox" class="car-select" value="${c.id}" ${selectedCars.has(c.id) ? 'checked' : ''} onchange="toggleCarSelection(${c.id}, event)"></td>
-                                <td><strong>${c.model}</strong> (${c.trim || 'Basic'})</td>
+                                <td><strong>${c.model}</strong></td>
+                                <td>${c.trim || '-'}</td>
+                                <td>${c.fuel || '-'}</td>
                                 <td>${c.color_ext || '-'} / ${c.color_int || '-'}</td>
+                                <td><span style="font-family: monospace;">${c.vin || 'Kiritilmagan'}</span></td>
                                 <td>$${c.factory_price || 0}</td>
-                                <td><span class="badge status-ordered">Ishlab chiqarilmoqda</span></td>
+                                <td><strong>$${c.final_cost || 0}</strong></td>
                                 <td><button class="btn btn-secondary btn-sm" onclick="moveToCustoms(${c.id})">Bojxonaga tushdi</button></td>
                             </tr>
                         `).join('')}
@@ -217,10 +223,13 @@ const renderView = (viewId) => {
                     <thead>
                         <tr>
                             <th style="width: 40px;"><input type="checkbox" onclick="toggleAllCars(event, 'customs')"></th>
-                            <th>Model</th>
+                            <th>Avtomobil (Marka, Model)</th>
+                            <th>Komp (Trim)</th>
+                            <th>Yoqilg'i</th>
+                            <th>Rangi (Tashqi/Ichki)</th>
                             <th>VIN Kod</th>
-                            <th>Narx (Sebestoimost)</th>
-                            <th>Holati</th>
+                            <th>Zavod Narxi</th>
+                            <th>Yakuniy Sebestoimost</th>
                             <th>Dilerga biriktirish</th>
                         </tr>
                     </thead>
@@ -229,9 +238,12 @@ const renderView = (viewId) => {
                             <tr>
                                 <td><input type="checkbox" class="car-select" value="${c.id}" ${selectedCars.has(c.id) ? 'checked' : ''} onchange="toggleCarSelection(${c.id}, event)"></td>
                                 <td><strong>${c.model}</strong></td>
-                                <td><span style="font-family: monospace;">${c.vin || 'VIN kiritilmagan'}</span></td>
-                                <td>$${c.final_cost || 0}</td>
-                                <td><span class="badge status-customs">Bojxonada saqlanmoqda</span></td>
+                                <td>${c.trim || '-'}</td>
+                                <td>${c.fuel || '-'}</td>
+                                <td>${c.color_ext || '-'} / ${c.color_int || '-'}</td>
+                                <td><span style="font-family: monospace;">${c.vin || 'Kiritilmagan'}</span></td>
+                                <td>$${c.factory_price || 0}</td>
+                                <td><strong>$${c.final_cost || 0}</strong></td>
                                 <td class="flex-gap">
                                     <select id="assign_select_${c.id}" style="width: 150px; padding: 0.4rem;">
                                         <option value="">-- Diler Tanlang --</option>
@@ -303,24 +315,28 @@ const renderView = (viewId) => {
                     <thead>
                         <tr>
                             <th style="width: 40px;"><input type="checkbox" onclick="toggleAllCars(event, 'instock')"></th>
-                            <th>Model (Yoqilg'i)</th>
+                            <th>Avtomobil (Marka, Model)</th>
+                            <th>Komp (Trim)</th>
+                            <th>Yoqilg'i</th>
+                            <th>Rangi (Tashqi/Ichki)</th>
                             <th>VIN Kod</th>
-                            <th>Rangi (Kuzov)</th>
+                            <th>Yakuniy Sebestoimost</th>
                             ${currentUser.role === 'admin' ? "<th>Diler Nomi</th>" : ""}
-                            <th>Holati</th>
-                            <th>Savdo qilish</th>
+                            <th>Aksiya (Sotish)</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${myCars.map(c => `
                             <tr>
                                 <td><input type="checkbox" class="car-select" value="${c.id}" ${selectedCars.has(c.id) ? 'checked' : ''} onchange="toggleCarSelection(${c.id}, event)"></td>
-                                <td><strong>${c.model}</strong> (${c.fuel || 'N/A'})</td>
-                                <td><span style="font-family: monospace;">${c.vin}</span></td>
-                                <td>${c.color_ext || '-'}</td>
+                                <td><strong>${c.model}</strong></td>
+                                <td>${c.trim || '-'}</td>
+                                <td>${c.fuel || '-'}</td>
+                                <td>${c.color_ext || '-'} / ${c.color_int || '-'}</td>
+                                <td><span style="font-family: monospace;">${c.vin || 'Kiritilmagan'}</span></td>
+                                <td><strong>$${c.final_cost || 0}</strong></td>
                                 ${currentUser.role === 'admin' ? `<td>${db.dealerships.find(d => 'dealer_'+d.id === c.location)?.name || 'Noma\`lum'}</td>` : ""}
-                                <td><span class="badge status-instock">Sotuvda mavjud</span></td>
-                                <td><button class="btn btn-primary" onclick="openSaleModal(${c.id})"><i class="ph ph-shopping-cart"></i> Sotish qatorini ochish</button></td>
+                                <td><button class="btn btn-primary" onclick="openSaleModal(${c.id})"><i class="ph ph-shopping-cart"></i> Savdoni yopish</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -373,12 +389,21 @@ const renderView = (viewId) => {
 
 // --- Modal & Utility Functions ---
 window.downloadShablon = () => {
-    const ws_data = [
-        ["Mashina", "Komplektatsiya", "Yoqilg'i turi", "VIN_Kod", "Kuzov_Rangi", "Salon_Rangi", "Zavod_Narxi", "Qoshimcha_Rasxod", "Yakuniy_Sebestoimost"],
-        ["C16", "Full", "Gibrid", "", "Oq", "Qora", "24000", "0", "24000"],
-        ["C11", "Basic", "Elektro", "LXV23000981...", "Qora", "Jigarrang", "21000", "500", "21500"]
-    ];
-    var ws = XLSX.utils.aoa_to_sheet(ws_data);
+    const ws = XLSX.utils.json_to_sheet([
+        {
+            "Марка": "BYD",
+            "Модель": "Song Plus",
+            "Спецификация": "Flagship 605",
+            "Вид топлива": "Elektro",
+            "Цвет Кузова": "Qora",
+            "Цвет Салона": "Jigarrang",
+            "ВИН": "XWW0000000001",
+            "Количество": 1,
+            "Заводская цена": 25000,
+            "Дополнительные расходы": 3000,
+            "Итоговая себестоимость": 28000
+        }
+    ]);
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Shablon");
     XLSX.writeFile(wb, "AutoCRM_Yuklash_Shabloni.xlsx");
@@ -399,25 +424,26 @@ window.uploadExcel = (event, targetStatus) => {
         let loadedCount = 0;
         const rowsToInsert = [];
 
-        json.forEach(row => {
-            const factPrice = parseFloat(row["Zavod_Narxi"]) || 0;
-            const extra = parseFloat(row["Qoshimcha_Rasxod"]) || 0;
-            rowsToInsert.push({
-                id: Date.now() + Math.floor(Math.random() * 1000000), // Unique ID for supabase BIGINT
-                model: row["Mashina"] || 'Noma`lum',
-                trim: row["Komplektatsiya"] || '',
-                fuel: row["Yoqilg'i turi"] || '',
-                color_ext: row["Kuzov_Rangi"] || '',
-                color_int: row["Salon_Rangi"] || '',
-                vin: row["VIN_Kod"] || '', 
-                status: targetStatus,
-                location: targetStatus === 'ordered' ? 'china' : 'customs',
-                factory_price: factPrice,
-                extra: extra,
-                final_cost: parseFloat(row["Yakuniy_Sebestoimost"]) || (factPrice + extra),
-                price: parseFloat(row["Yakuniy_Sebestoimost"]) + 2000 || 25000
-            });
-            loadedCount++;
+        json.forEach((row, index) => {
+            const qty = parseInt(row["Количество"]) || 1;
+            for(let i=0; i<qty; i++) {
+                rowsToInsert.push({
+                    id: Date.now() + index * 100 + i,
+                    model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || "Noma'lum Avto",
+                    trim: row["Спецификация"] || "",
+                    fuel: row["Вид топлива"] || "",
+                    vin: row["ВИН"] || "",
+                    color_ext: row["Цвет Кузова"] || "",
+                    color_int: row["Цвет Салона"] || "",
+                    factory_price: parseFloat(row["Заводская цена"]) || 0,
+                    extra: parseFloat(row["Дополнительные расходы"]) || 0,
+                    final_cost: parseFloat(row["Итоговая себестоимость"]) || 0,
+                    price: (parseFloat(row["Итоговая себестоимость"]) + 2000) || null,
+                    status: targetStatus,
+                    location: targetStatus === 'ordered' ? 'china' : 'customs'
+                });
+                loadedCount++;
+            }
         });
 
         // Insert to Supabase DB
