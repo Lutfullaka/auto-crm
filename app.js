@@ -105,51 +105,209 @@ const renderView = (viewId) => {
     let html = '';
 
     if (viewId === 'dashboard') {
-        const totalChina = db.cars.filter(c => c.status === 'ordered').length;
+        const totalChina   = db.cars.filter(c => c.status === 'ordered').length;
         const totalCustoms = db.cars.filter(c => c.status === 'customs').length;
         const totalDealers = db.cars.filter(c => c.status === 'instock').length;
-        const totalSales = db.cars.filter(c => c.status === 'sold').length;
-        const totalLimit = totalChina + totalCustoms + totalDealers + totalSales;
-        
-        let pChina = totalLimit ? Math.round((totalChina / totalLimit) * 100) : 0;
-        let pCustoms = totalLimit ? Math.round((totalCustoms / totalLimit) * 100) : 0;
-        let pDealers = totalLimit ? Math.round((totalDealers / totalLimit) * 100) : 0;
-        let pSales = totalLimit ? Math.round((totalSales / totalLimit) * 100) : 0;
+        const totalSoldAll = db.cars.filter(c => c.status === 'sold').length;
+
+        // --- Oylik savdolar (so'nggi 6 oy) ---
+        const now = new Date();
+        const monthNames = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'];
+        const last6Months = Array.from({length: 6}, (_, i) => {
+            const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+            return { label: monthNames[d.getMonth()] + ' ' + d.getFullYear(), month: d.getMonth(), year: d.getFullYear(), count: 0, revenue: 0 };
+        });
+        db.sales.forEach(s => {
+            const d = new Date(s.date);
+            const slot = last6Months.find(m => m.month === d.getMonth() && m.year === d.getFullYear());
+            if (slot) { slot.count++; slot.revenue += parseFloat(s.price) || 0; }
+        });
+        const maxCount = Math.max(...last6Months.map(m => m.count), 1);
+
+        // --- Oxirgi oy ---
+        const lastMonth = last6Months[last6Months.length - 1];
+        const prevMonth = last6Months[last6Months.length - 2];
+        const lastMonthSales = db.sales.filter(s => {
+            const d = new Date(s.date);
+            return d.getMonth() === lastMonth.month && d.getFullYear() === lastMonth.year;
+        });
+        const lastRevenue = lastMonth.revenue;
+        const prevRevenue = prevMonth.revenue;
+        const revDelta = prevRevenue > 0 ? Math.round(((lastRevenue - prevRevenue) / prevRevenue) * 100) : 0;
+
+        // --- TOP Modellar (jami sotilganlar orasida) ---
+        const modelCount = {};
+        db.sales.forEach(s => { modelCount[s.car_model] = (modelCount[s.car_model] || 0) + 1; });
+        const topModels = Object.entries(modelCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
+        const maxModel = topModels.length ? topModels[0][1] : 1;
+
+        // --- Diler ko'rsatgichlari ---
+        const dealerStats = db.dealerships.map(d => {
+            const dSales = db.sales.filter(s => s.dealer_id === d.id);
+            const dStock = db.cars.filter(c => c.location === 'dealer_' + d.id && c.status === 'instock').length;
+            return { name: d.name, sales: dSales.length, stock: dStock, revenue: dSales.reduce((sum, s) => sum + (parseFloat(s.price)||0), 0) };
+        }).sort((a,b) => b.sales - a.sales);
+        const maxDealerSale = dealerStats.length ? Math.max(...dealerStats.map(d => d.sales), 1) : 1;
+
+        // --- Oxirgi 5 ta sotuv ---
+        const recentSales = db.sales.slice(0, 5);
 
         html = `
             <div class="view-header mb-4 mt-2">
                 <h1>Asosiy Boshqaruv Paneli</h1>
+                <span style="font-size:0.85rem; color:var(--text-muted);">
+                    ${now.toLocaleDateString('uz-UZ', {day:'numeric', month:'long', year:'numeric'})} holatiga ko'ra
+                </span>
             </div>
-            
+
+            <!-- KPI kartalar -->
             <div class="stats-grid mb-6">
                 <div class="stat-card">
                     <div class="stat-title">Xitoyda (Zavod)</div>
-                    <div class="stat-value">${totalChina} ta</div>
-                    <div class="progress-container"><div class="progress-bar" style="width: ${pChina}%; background: #6366f1;"></div></div>
-                    <div class="stat-subtitle"><span>Umumiy hajmdan</span> <span>${pChina}%</span></div>
+                    <div class="stat-value">${totalChina} <small style="font-size:1rem">ta</small></div>
+                    <div class="stat-subtitle"><span>Buyurtmada</span></div>
                     <i class="ph ph-factory stat-icon"></i>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-title">Bojxonada (Tamojnya)</div>
-                    <div class="stat-value text-warning">${totalCustoms} ta</div>
-                    <div class="progress-container"><div class="progress-bar" style="width: ${pCustoms}%; background: #f59e0b;"></div></div>
-                    <div class="stat-subtitle"><span>Umumiy hajmdan</span> <span>${pCustoms}%</span></div>
+                    <div class="stat-title">Bojxonada</div>
+                    <div class="stat-value text-warning">${totalCustoms} <small style="font-size:1rem">ta</small></div>
+                    <div class="stat-subtitle"><span>Kutilmoqda</span></div>
                     <i class="ph ph-truck stat-icon"></i>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-title">Dilerlar omborida</div>
-                    <div class="stat-value text-success">${totalDealers} ta</div>
-                    <div class="progress-container"><div class="progress-bar" style="width: ${pDealers}%; background: #10b981;"></div></div>
-                    <div class="stat-subtitle"><span>Umumiy hajmdan</span> <span>${pDealers}%</span></div>
+                    <div class="stat-title">Omborlarda</div>
+                    <div class="stat-value text-success">${totalDealers} <small style="font-size:1rem">ta</small></div>
+                    <div class="stat-subtitle"><span>Sotuvga tayyor</span></div>
                     <i class="ph ph-storefront stat-icon"></i>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-title">Jami Sotuvlar</div>
-                    <div class="stat-value text-accent">${totalSales} ta</div>
-                    <div class="progress-container"><div class="progress-bar" style="width: ${pSales}%; background: #ef4444;"></div></div>
-                    <div class="stat-subtitle"><span>Umumiy hajmdan</span> <span>${pSales}%</span></div>
+                    <div class="stat-title">Jami Sotildi</div>
+                    <div class="stat-value text-accent">${totalSoldAll} <small style="font-size:1rem">ta</small></div>
+                    <div class="stat-subtitle"><span>Barcha vaqt</span></div>
                     <i class="ph ph-currency-circle-dollar stat-icon"></i>
                 </div>
+            </div>
+
+            <!-- 2 ustunli blok: Oylik grafik + Oxirgi oy -->
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+
+                <!-- Oylik savdolar grafigi (bar chart) -->
+                <div class="glass-card" style="padding: 1.5rem;">
+                    <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                        <i class="ph ph-chart-bar" style="margin-right:.4rem; color:#6366f1;"></i> Oylik Savdolar Dinamikasi
+                    </h3>
+                    <div style="display:flex; align-items:flex-end; gap:0.75rem; height:160px;">
+                        ${last6Months.map((m, i) => {
+                            const h = maxCount > 0 ? Math.max(Math.round((m.count / maxCount) * 140), 4) : 4;
+                            const isLast = i === last6Months.length - 1;
+                            return `
+                            <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                                <span style="font-size:.72rem; font-weight:600; color:${isLast ? '#6366f1' : 'var(--text-muted)'};">${m.count}</span>
+                                <div style="width:100%; height:${h}px; background:${isLast ? '#6366f1' : 'rgba(99,102,241,.3)'}; border-radius:6px 6px 0 0; transition:.3s;"></div>
+                                <span style="font-size:.68rem; color:var(--text-muted); text-align:center; white-space:nowrap;">${m.label}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- Oxirgi oy natijalari -->
+                <div class="glass-card" style="padding: 1.5rem; display:flex; flex-direction:column; gap:1rem;">
+                    <h3 style="margin:0; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                        <i class="ph ph-calendar-check" style="margin-right:.4rem; color:#10b981;"></i> ${lastMonth.label} Natijasi
+                    </h3>
+                    <div style="text-align:center; padding:1rem 0;">
+                        <div style="font-size:2.5rem; font-weight:800; color:#10b981; line-height:1;">${lastMonth.count}</div>
+                        <div style="color:var(--text-muted); font-size:.85rem; margin-top:.3rem;">ta sotildi</div>
+                    </div>
+                    <div style="background:rgba(16,185,129,.1); border-radius:8px; padding:.75rem; text-align:center;">
+                        <div style="font-size:1.25rem; font-weight:700; color:#10b981;">$${lastRevenue.toLocaleString()}</div>
+                        <div style="font-size:.75rem; color:var(--text-muted);">Daromad</div>
+                    </div>
+                    <div style="text-align:center; font-size:.85rem; color:${revDelta >= 0 ? '#10b981' : '#ef4444'}; font-weight:600;">
+                        <i class="ph ph-${revDelta >= 0 ? 'trend-up' : 'trend-down'}"></i>
+                        ${revDelta >= 0 ? '+' : ''}${revDelta}% oldingi oyga nisbatan
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2 ustunli blok: Top Modellar + Diler ko'rsatgichlari -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+
+                <!-- TOP Modellar -->
+                <div class="glass-card" style="padding: 1.5rem;">
+                    <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                        <i class="ph ph-trophy" style="margin-right:.4rem; color:#f59e0b;"></i> Eng Ko'p Sotilgan Modellar
+                    </h3>
+                    ${topModels.length === 0 ? `<p style="color:var(--text-muted); text-align:center; padding:2rem 0;">Sotuvlar ma'lumoti yo'q</p>` :
+                    topModels.map(([model, count], i) => `
+                        <div style="margin-bottom:.9rem;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:.35rem;">
+                                <span style="font-weight:600; font-size:.9rem;">
+                                    ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`} ${model}
+                                </span>
+                                <span style="font-size:.85rem; color:var(--text-muted);">${count} ta</span>
+                            </div>
+                            <div style="background:rgba(255,255,255,.06); border-radius:4px; height:6px;">
+                                <div style="width:${Math.round((count/maxModel)*100)}%; height:100%; background:#f59e0b; border-radius:4px;"></div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <!-- Diler reytingi -->
+                <div class="glass-card" style="padding: 1.5rem;">
+                    <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                        <i class="ph ph-storefront" style="margin-right:.4rem; color:#6366f1;"></i> Diler Ko'rsatgichlari
+                    </h3>
+                    ${dealerStats.length === 0 ? `<p style="color:var(--text-muted); text-align:center; padding:2rem 0;">Dilerlar yo'q</p>` :
+                    dealerStats.map((d, i) => `
+                        <div style="margin-bottom:.9rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.35rem;">
+                                <span style="font-weight:600; font-size:.9rem;">${i+1}. ${d.name}</span>
+                                <div style="display:flex; gap:.5rem; font-size:.78rem; color:var(--text-muted);">
+                                    <span>📦 ${d.stock}</span>
+                                    <span>✅ ${d.sales}</span>
+                                </div>
+                            </div>
+                            <div style="background:rgba(255,255,255,.06); border-radius:4px; height:6px;">
+                                <div style="width:${Math.round((d.sales/maxDealerSale)*100)}%; height:100%; background:#6366f1; border-radius:4px;"></div>
+                            </div>
+                            <div style="font-size:.75rem; color:#10b981; margin-top:.25rem;">$${d.revenue.toLocaleString()} daromad</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Oxirgi 5 ta sotuv -->
+            <div class="glass-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                    <i class="ph ph-clock-clockwise" style="margin-right:.4rem; color:#ef4444;"></i> Oxirgi Sotuvlar
+                </h3>
+                ${recentSales.length === 0 ? `<p style="color:var(--text-muted); text-align:center; padding:2rem 0;">Hali sotuv amalga oshirilmagan</p>` : `
+                <div class="table-container" style="margin:0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sana</th>
+                                <th>Model</th>
+                                <th>Mijoz</th>
+                                <th>Narxi</th>
+                                <th>To'lov turi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${recentSales.map(s => `
+                                <tr>
+                                    <td style="color:var(--text-muted); font-size:.85rem;">${new Date(s.date).toLocaleDateString('uz-UZ', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'})}</td>
+                                    <td><strong>${s.car_model || '-'}</strong></td>
+                                    <td>${s.customer_name || '-'}</td>
+                                    <td style="color:#10b981; font-weight:700;">$${parseFloat(s.price||0).toLocaleString()}</td>
+                                    <td><span class="badge" style="background:${s.payment_type==='cash' ? 'rgba(16,185,129,.15)' : 'rgba(99,102,241,.15)'}; color:${s.payment_type==='cash' ? '#10b981' : '#6366f1'}; padding:.2rem .6rem; border-radius:4px;">${s.payment_type === 'cash' ? 'Naqd' : 'Muddatli'}</span></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>`}
             </div>
         `;
     } 
