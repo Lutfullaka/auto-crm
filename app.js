@@ -4,7 +4,7 @@
 const supabaseUrl = 'https://xyubrbbvjufifrilrbab.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5dWJyYmJ2anVmaWZyaWxyYmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNTUxMzksImV4cCI6MjA5MTczMTEzOX0.UwBygN8dBeMu-dhAERuLFjzAlH5DsTaum_SwxsnbYa4';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
-console.log("%c Auto-CRM v32 (Precision Sync) is running.", "color: #2ecc71; font-weight: bold; font-size: 14px;");
+console.log("%c Auto-CRM v33 (Precision Sync) is running.", "color: #2ecc71; font-weight: bold; font-size: 14px;");
 
 // --- Holat (State) ---
 let currentUser = null;
@@ -218,7 +218,7 @@ const renderView = (viewId) => {
         html = `
             <div class="view-header mb-4 mt-2">
                 <div>
-                    <h1>Asosiy Boshqaruv Paneli <small style="font-size: 10px; color: #888;">v32 (Robust Sync)</small></h1>
+                    <h1>Asosiy Boshqaruv Paneli <small style="font-size: 10px; color: #888;">v33 (Robust Sync)</small></h1>
                     <span style="font-size:0.85rem; color:var(--text-muted);">
                         ${now.toLocaleDateString('uz-UZ', {day:'numeric', month:'long', year:'numeric'})} holatiga ko'ra
                     </span>
@@ -766,9 +766,9 @@ window.uploadExcel = (event, targetStatus) => {
             if (targetStatus === 'sales') {
                 // SOTUVLAR LOGIKASI (Xavfsiz: avval ma'lumot yig'amiz)
                 let car = globalDB.cars.find(c => c.vin === vin);
-                // v31: Non-overlapping mathematical identity
+                // v33: Increased offset to 1,000,000 to prevent collisions on large quantities
                 const sessionBase = Math.floor(Date.now() / 1000); 
-                let carIdToUse = car ? car.id : (sessionBase * 1000000 + index * 100);
+                let carIdToUse = car ? car.id : (sessionBase * 10000000 + index * 10000);
 
                 if (!car) {
                     // Mashina yo'q bo'lsa - yangisidan yig'amiz
@@ -804,7 +804,7 @@ window.uploadExcel = (event, targetStatus) => {
                 // OLDINGI LOGIKA (Orders/Customs/Inventory)
                 for(let i=0; i<qty; i++) {
                     const rowData = {
-                        id: (Math.floor(Date.now() / 1000) * 1000000 + (index * 100) + i), // v31: Safe distinct BIGINT
+                        id: (Math.floor(Date.now() / 1000) * 10000000 + (index * 10000) + i), // v33: Safe large distinct BIGINT
                         // Note: Removed 'date' field because it's missing in some DB schemas. 
                         // Using Supabase default created_at instead.
                         model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
