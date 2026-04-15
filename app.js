@@ -195,8 +195,8 @@ const renderView = (viewId) => {
 
                 <!-- Oylik savdolar grafigi (bar chart) -->
                 <div class="glass-card" style="padding: 1.5rem;">
-                    <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
-                        <i class="ph ph-chart-bar" style="margin-right:.4rem; color:#6366f1;"></i> Oylik Savdolar Dinamikasi
+                    <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                        <i class="ph ph-chart-bar" style="margin-right:.4rem; color:var(--accent-primary);"></i> Oylik Savdolar Dinamikasi
                     </h3>
                     <div style="display:flex; align-items:flex-end; gap:0.75rem; height:160px;">
                         ${last6Months.map((m, i) => {
@@ -204,8 +204,8 @@ const renderView = (viewId) => {
                             const isLast = i === last6Months.length - 1;
                             return `
                             <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
-                                <span style="font-size:.72rem; font-weight:600; color:${isLast ? '#6366f1' : 'var(--text-muted)'};">${m.count}</span>
-                                <div style="width:100%; height:${h}px; background:${isLast ? '#6366f1' : 'rgba(99,102,241,.3)'}; border-radius:6px 6px 0 0; transition:.3s;"></div>
+                                <span style="font-size:.72rem; font-weight:600; color:${isLast ? 'var(--accent-primary)' : 'var(--text-muted)'};">${m.count}</span>
+                                <div style="width:100%; height:${h}px; background:${isLast ? 'var(--accent-primary)' : '#e4e6eb'}; border-radius:6px 6px 0 0; transition:.3s;"></div>
                                 <span style="font-size:.68rem; color:var(--text-muted); text-align:center; white-space:nowrap;">${m.label}</span>
                             </div>`;
                         }).join('')}
@@ -214,18 +214,18 @@ const renderView = (viewId) => {
 
                 <!-- Oxirgi oy natijalari -->
                 <div class="glass-card" style="padding: 1.5rem; display:flex; flex-direction:column; gap:1rem;">
-                    <h3 style="margin:0; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
-                        <i class="ph ph-calendar-check" style="margin-right:.4rem; color:#10b981;"></i> ${lastMonth.label} Natijasi
+                    <h3 style="margin:0; font-size:1rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                        <i class="ph ph-calendar-check" style="margin-right:.4rem; color:var(--success);"></i> ${lastMonth.label} Natijasi
                     </h3>
                     <div style="text-align:center; padding:1rem 0;">
-                        <div style="font-size:2.5rem; font-weight:800; color:#10b981; line-height:1;">${lastMonth.count}</div>
+                        <div style="font-size:2.5rem; font-weight:800; color:var(--success); line-height:1;">${lastMonth.count}</div>
                         <div style="color:var(--text-muted); font-size:.85rem; margin-top:.3rem;">ta sotildi</div>
                     </div>
-                    <div style="background:rgba(16,185,129,.1); border-radius:8px; padding:.75rem; text-align:center;">
-                        <div style="font-size:1.25rem; font-weight:700; color:#10b981;">$${lastRevenue.toLocaleString()}</div>
-                        <div style="font-size:.75rem; color:var(--text-muted);">Daromad</div>
+                    <div style="background:rgba(49,162,76,.12); border-radius:8px; padding:.75rem; text-align:center;">
+                        <div style="font-size:1.25rem; font-weight:700; color:var(--success);">$${lastRevenue.toLocaleString()}</div>
+                        <div style="font-size:.75rem; color:var(--text-secondary);">Daromad</div>
                     </div>
-                    <div style="text-align:center; font-size:.85rem; color:${revDelta >= 0 ? '#10b981' : '#ef4444'}; font-weight:600;">
+                    <div style="text-align:center; font-size:.85rem; color:${revDelta >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:600;">
                         <i class="ph ph-${revDelta >= 0 ? 'trend-up' : 'trend-down'}"></i>
                         ${revDelta >= 0 ? '+' : ''}${revDelta}% oldingi oyga nisbatan
                     </div>
@@ -237,8 +237,8 @@ const renderView = (viewId) => {
 
                 <!-- TOP Modellar -->
                 <div class="glass-card" style="padding: 1.5rem;">
-                    <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
-                        <i class="ph ph-trophy" style="margin-right:.4rem; color:#f59e0b;"></i> Eng Ko'p Sotilgan Modellar
+                    <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                        <i class="ph ph-trophy" style="margin-right:.4rem; color:var(--warning);"></i> Eng Ko'p Sotilgan Modellar
                     </h3>
                     ${topModels.length === 0 ? `<p style="color:var(--text-muted); text-align:center; padding:2rem 0;">Sotuvlar ma'lumoti yo'q</p>` :
                     topModels.map(([model, count], i) => `
@@ -247,10 +247,10 @@ const renderView = (viewId) => {
                                 <span style="font-weight:600; font-size:.9rem;">
                                     ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`} ${model}
                                 </span>
-                                <span style="font-size:.85rem; color:var(--text-muted);">${count} ta</span>
+                                <span style="font-size:.85rem; color:var(--text-secondary); font-weight:600;">${count} ta</span>
                             </div>
-                            <div style="background:rgba(255,255,255,.06); border-radius:4px; height:6px;">
-                                <div style="width:${Math.round((count/maxModel)*100)}%; height:100%; background:#f59e0b; border-radius:4px;"></div>
+                            <div style="background:#e4e6eb; border-radius:4px; height:6px;">
+                                <div style="width:${Math.round((count/maxModel)*100)}%; height:100%; background:var(--warning); border-radius:4px;"></div>
                             </div>
                         </div>
                     `).join('')}
@@ -258,23 +258,23 @@ const renderView = (viewId) => {
 
                 <!-- Diler reytingi -->
                 <div class="glass-card" style="padding: 1.5rem;">
-                    <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
-                        <i class="ph ph-storefront" style="margin-right:.4rem; color:#6366f1;"></i> Diler Ko'rsatgichlari
+                    <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                        <i class="ph ph-storefront" style="margin-right:.4rem; color:var(--accent-primary);"></i> Diler Ko'rsatgichlari
                     </h3>
                     ${dealerStats.length === 0 ? `<p style="color:var(--text-muted); text-align:center; padding:2rem 0;">Dilerlar yo'q</p>` :
                     dealerStats.map((d, i) => `
                         <div style="margin-bottom:.9rem;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.35rem;">
                                 <span style="font-weight:600; font-size:.9rem;">${i+1}. ${d.name}</span>
-                                <div style="display:flex; gap:.5rem; font-size:.78rem; color:var(--text-muted);">
+                                <div style="display:flex; gap:.5rem; font-size:.78rem; color:var(--text-secondary);">
                                     <span>📦 ${d.stock}</span>
                                     <span>✅ ${d.sales}</span>
                                 </div>
                             </div>
-                            <div style="background:rgba(255,255,255,.06); border-radius:4px; height:6px;">
-                                <div style="width:${Math.round((d.sales/maxDealerSale)*100)}%; height:100%; background:#6366f1; border-radius:4px;"></div>
+                            <div style="background:#e4e6eb; border-radius:4px; height:6px;">
+                                <div style="width:${Math.round((d.sales/maxDealerSale)*100)}%; height:100%; background:var(--accent-primary); border-radius:4px;"></div>
                             </div>
-                            <div style="font-size:.75rem; color:#10b981; margin-top:.25rem;">$${d.revenue.toLocaleString()} daromad</div>
+                            <div style="font-size:.75rem; color:var(--success); margin-top:.25rem; font-weight:700;">$${d.revenue.toLocaleString()} daromad</div>
                         </div>
                     `).join('')}
                 </div>
@@ -282,11 +282,11 @@ const renderView = (viewId) => {
 
             <!-- Oxirgi 5 ta sotuv -->
             <div class="glass-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
-                <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
-                    <i class="ph ph-clock-clockwise" style="margin-right:.4rem; color:#ef4444;"></i> Oxirgi Sotuvlar
+                <h3 style="margin:0 0 1.25rem; font-size:1rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:.05em;">
+                    <i class="ph ph-clock-clockwise" style="margin-right:.4rem; color:var(--danger);"></i> Oxirgi Sotuvlar
                 </h3>
                 ${recentSales.length === 0 ? `<p style="color:var(--text-muted); text-align:center; padding:2rem 0;">Hali sotuv amalga oshirilmagan</p>` : `
-                <div class="table-container" style="margin:0;">
+                <div class="table-container" style="margin:0; border:none; box-shadow:none;">
                     <table>
                         <thead>
                             <tr>
@@ -300,11 +300,11 @@ const renderView = (viewId) => {
                         <tbody>
                             ${recentSales.map(s => `
                                 <tr>
-                                    <td style="color:var(--text-muted); font-size:.85rem;">${new Date(s.date).toLocaleDateString('uz-UZ', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'})}</td>
+                                    <td style="color:var(--text-secondary); font-size:.85rem;">${new Date(s.date).toLocaleDateString('uz-UZ')}</td>
                                     <td><strong>${s.car_model || '-'}</strong></td>
                                     <td>${s.customer_name || '-'}</td>
-                                    <td style="color:#10b981; font-weight:700;">$${parseFloat(s.price||0).toLocaleString()}</td>
-                                    <td><span class="badge" style="background:${s.payment_type==='cash' ? 'rgba(16,185,129,.15)' : 'rgba(99,102,241,.15)'}; color:${s.payment_type==='cash' ? '#10b981' : '#6366f1'}; padding:.2rem .6rem; border-radius:4px;">${s.payment_type === 'cash' ? 'Naqd' : 'Muddatli'}</span></td>
+                                    <td style="color:var(--success); font-weight:800;">$${parseFloat(s.price||0).toLocaleString()}</td>
+                                    <td><span class="badge" style="background:${s.payment_type==='cash' ? 'rgba(49,162,76,.12)' : 'rgba(24,119,242,.12)'}; color:${s.payment_type==='cash' ? 'var(--success)' : 'var(--accent-primary)'}; padding:.3rem .6rem; border-radius:6px;">${s.payment_type === 'cash' ? 'Naqd' : 'Muddatli'}</span></td>
                                 </tr>
                             `).join('')}
                         </tbody>
