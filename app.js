@@ -17,11 +17,21 @@ const refreshDB = async () => {
             _supabase.from('users').select('*'),
             _supabase.from('dealerships').select('*'),
             _supabase.from('cars').select('*').order('id', {ascending: false}),
-            _supabase.from('sales').select('*').order('date', {ascending: false}),
+            _supabase.from('sales').select('*').order('id', {ascending: false}), // FIXED: used 'id' instead of 'date'
             _supabase.from('customers').select('*').order('id', {ascending: false})
         ]);
         
-        if (u.error) alert("Supabase ga ulanishda xato: " + u.error.message);
+        // Granular error reporting
+        if (u.error) console.error("Users error:", u.error.message);
+        if (d.error) console.error("Dealers error:", d.error.message);
+        if (c.error) console.error("Cars error:", c.error.message);
+        if (s.error) console.error("Sales error:", s.error.message);
+        if (cust.error) console.error("Customers error:", cust.error.message);
+
+        const someError = u.error || d.error || c.error || s.error || cust.error;
+        if (someError) {
+            alert("Bazadan ma'lumot olishda qisman xatolik yuz berdi. Console ni tekshiring.");
+        }
         
         globalDB.users = u.data || [];
         globalDB.dealerships = d.data || [];
@@ -29,7 +39,7 @@ const refreshDB = async () => {
         globalDB.sales = s.data || [];
         globalDB.customers = cust.data || [];
     } catch (err) {
-        alert("Tarmoqda xatolik yoki URL xato: " + err.message);
+        alert("Tarmoqda xatolik: " + err.message);
     }
 };
 
@@ -733,7 +743,7 @@ window.uploadExcel = (event, targetStatus) => {
                     });
                 }
 
-                // b. Sotuv yozuvini tayyorlash
+                // b. Sotuv yozuvini tayyorlash (faqat mavjud ustunlar)
                 salesToInsert.push({
                     id: Date.now() + index * 2000 + Math.floor(Math.random() * 999),
                     car_id: carIdToUse,
