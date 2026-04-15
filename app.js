@@ -326,6 +326,7 @@ const renderView = (viewId) => {
                         <input type="file" id="excel-upload-orders" accept=".xlsx, .xls" class="hidden" onchange="uploadExcel(event, 'ordered')">
                     </label>
                     <button class="btn btn-primary" onclick="openOrderModal()"><i class="ph ph-plus"></i> Qo'lda Qo'shish</button>
+                    <button class="btn btn-accent" onclick="openTransferModal('ordered')" style="background:var(--accent-color); border-color:var(--accent-color);"><i class="ph ph-truck"></i> Transfer (Yuborish)</button>
                 </div>
             </div>
             <div class="table-container">
@@ -340,7 +341,6 @@ const renderView = (viewId) => {
                             <th>VIN Kod</th>
                             <th>Zavod Narxi</th>
                             <th>Yakuniy Sebestoimost</th>
-                            <th>Amaliyot</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -354,10 +354,9 @@ const renderView = (viewId) => {
                                 <td><span style="font-family: monospace;">${c.vin || 'Kiritilmagan'}</span></td>
                                 <td>$${c.factory_price || 0}</td>
                                 <td><strong>$${c.final_cost || 0}</strong></td>
-                                <td><button class="btn btn-secondary btn-sm" onclick="moveToCustoms(${c.id})">Bojxonaga tushdi</button></td>
                             </tr>
                         `).join('')}
-                        ${chinaCars.length === 0 ? "<tr><td colspan='6'>Buyurtmalar yo'q.</td></tr>" : ""}
+                        ${chinaCars.length === 0 ? "<tr><td colspan='8'>Buyurtmalar yo'q.</td></tr>" : ""}
                     </tbody>
                 </table>
             </div>
@@ -377,6 +376,7 @@ const renderView = (viewId) => {
                         <i class="ph ph-upload-simple"></i> Bojxona Omboriga Exceldan qabul
                         <input type="file" id="excel-upload-customs" accept=".xlsx, .xls" class="hidden" onchange="uploadExcel(event, 'customs')">
                     </label>
+                    <button class="btn btn-accent" onclick="openTransferModal('customs')" style="background:var(--accent-color); border-color:var(--accent-color);"><i class="ph ph-truck"></i> Transfer (Peremesheniya)</button>
                 </div>
             </div>
             <div class="table-container">
@@ -391,7 +391,6 @@ const renderView = (viewId) => {
                             <th>VIN Kod</th>
                             <th>Zavod Narxi</th>
                             <th>Yakuniy Sebestoimost</th>
-                            <th>Dilerga biriktirish</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -405,13 +404,6 @@ const renderView = (viewId) => {
                                 <td><span style="font-family: monospace;">${c.vin || 'Kiritilmagan'}</span></td>
                                 <td>$${c.factory_price || 0}</td>
                                 <td><strong>$${c.final_cost || 0}</strong></td>
-                                <td class="flex-gap">
-                                    <select id="assign_select_${c.id}" style="width: 150px; padding: 0.4rem;">
-                                        <option value="">-- Diler Tanlang --</option>
-                                        ${dealersOptions}
-                                    </select>
-                                    <button class="btn btn-primary" onclick="assignToDealer(${c.id})" style="padding: 0.4rem 1rem;">O'tkazish</button>
-                                </td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -469,6 +461,7 @@ const renderView = (viewId) => {
                 <h1>${currentUser.role === 'dealer' ? "Mening Omborim (V nalichii)" : "Barcha Dilerlar Ombori"}</h1>
                 <div class="flex-gap">
                     ${currentUser.role === 'admin' ? `<button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>` : ""}
+                    ${currentUser.role === 'admin' ? `<button class="btn btn-accent" onclick="openTransferModal('instock')" style="background:var(--accent-color); border-color:var(--accent-color);"><i class="ph ph-arrows-left-right"></i> Transfer (Dilerga)</button>` : ""}
                 </div>
             </div>
             <div class="table-container">
@@ -712,44 +705,213 @@ window.openOrderModal = () => {
     });
 };
 
-window.moveToCustoms = async (carId) => {
-    const vin = prompt("Bojxonaga yetib keldi. Aynan ushbu mashinaning VIN kodini kiriting:");
-    if (vin) {
-        const extraRaw = prompt("Tamojnya va boshqa xarajatlar summasi ($):", "1500");
-        if(extraRaw !== null) {
-            const extra = parseFloat(extraRaw);
-            const car = globalDB.cars.find(c => c.id === carId);
-            const updatedCar = {
-                status: 'customs', 
-                location: 'customs', 
-                vin: vin.toUpperCase(),
-                extra: isNaN(extra) ? 0 : extra,
-                final_cost: (car.factory_price || 0) + (isNaN(extra) ? 0 : extra)
-            };
-            
-            const { error } = await _supabase.from('cars').update(updatedCar).eq('id', carId);
-            if(error) alert("Xato: " + error.message);
-            await refreshDataAndRender('orders');
-        }
+window.openTransferModal = (sourceType) => {
+    // sourceType can be 'ordered', 'customs', or 'instock'
+    let availableCars = globalDB.cars.filter(c => c.status === sourceType);
+    
+    // Unique modellar va trimlarni chiqarish (filter uchun)
+    const uniqueModels = [...new Set(availableCars.map(c => c.model).filter(Boolean))].sort();
+    const uniqueTrims  = [...new Set(availableCars.map(c => c.trim).filter(Boolean))].sort();
+
+    const dealersOptions = globalDB.dealerships.map(d => `<option value="dealer_${d.id}">${d.name}</option>`).join('');
+    
+    let destHtml = "";
+    if (sourceType === 'ordered') {
+        destHtml = `<option value="customs">Bojxona (Tamojnya) Ombori</option>`;
+    } else if (sourceType === 'customs') {
+        destHtml = dealersOptions;
+    } else {
+        destHtml = dealersOptions;
     }
+
+    const sourceLabel = sourceType === 'ordered' ? 'Xitoy Buyurtmalari' : (sourceType === 'customs' ? 'Bojxona' : 'Ombor');
+
+    const modalHtml = `
+        <div class="modal-overlay" id="transfer-modal">
+            <div class="modal-content" style="max-width: 760px; width: 97%;">
+                <div class="modal-header">
+                    <h3><i class="ph ph-arrows-left-right" style="color:var(--accent-color); margin-right:8px;"></i>Avtomobillarni Ko'chirish (Transfer)</h3>
+                    <button class="close-btn" onclick="closeModal('transfer-modal')"><i class="ph ph-x"></i></button>
+                </div>
+                
+                <form id="transfer-form">
+                    <!-- Manzillar -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom:1rem;">
+                        <div class="input-group">
+                            <label>Qayerdan</label>
+                            <input type="text" value="${sourceLabel}" disabled style="background: rgba(255,255,255,0.05); color: var(--text-muted);">
+                            <input type="hidden" id="tr-source" value="${sourceType}">
+                        </div>
+                        <div class="input-group">
+                            <label>Qayerga yuborilsin? <span style="color:#ef4444">*</span></label>
+                            <select id="tr-dest" required>
+                                <option value="">-- Manzilni tanlang --</option>
+                                ${destHtml}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Filterlar qatori -->
+                    <div style="display:grid; grid-template-columns: 1.5fr 1fr 1fr; gap:.75rem; margin-bottom:.75rem; align-items:end;">
+                        <div class="input-group" style="margin:0;">
+                            <label style="font-size:.82rem;"><i class="ph ph-magnifying-glass" style="margin-right:4px;"></i>VIN bo'yicha qidirish (oxirgi 4 raqam)</label>
+                            <input type="text" id="tr-search" placeholder="Masalan: 3421" maxlength="17"
+                                oninput="window.filterTransferCars()"
+                                style="font-family:monospace; letter-spacing:.05em;">
+                        </div>
+                        <div class="input-group" style="margin:0;">
+                            <label style="font-size:.82rem;"><i class="ph ph-car" style="margin-right:4px;"></i>Model</label>
+                            <select id="tr-filter-model" onchange="window.filterTransferCars()">
+                                <option value="">Barcha modellar</option>
+                                ${uniqueModels.map(m => `<option value="${m}">${m}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="input-group" style="margin:0;">
+                            <label style="font-size:.82rem;"><i class="ph ph-sliders" style="margin-right:4px;"></i>Komplektatsiya</label>
+                            <select id="tr-filter-trim" onchange="window.filterTransferCars()">
+                                <option value="">Barcha komp.</option>
+                                ${uniqueTrims.map(t => `<option value="${t}">${t}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tanlov uchun amallar -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:.85rem;">
+                        <div style="display:flex; gap:1rem;">
+                            <a href="#" onclick="window._trSelectAll(true); event.preventDefault();" style="color:var(--accent-color); text-decoration:none;"><i class="ph ph-check-square"></i> Barchasini tanlash</a>
+                            <a href="#" onclick="window._trSelectAll(false); event.preventDefault();" style="color:var(--text-muted); text-decoration:none;"><i class="ph ph-square"></i> Tanlashni bekor qilish</a>
+                        </div>
+                        <span id="tr-selected-count" style="color:var(--accent-color); font-weight:700;">0 ta tanlangan</span>
+                    </div>
+
+                    <!-- Ro'yhat -->
+                    <div style="max-height: 280px; overflow-y: auto; background: rgba(0,0,0,0.25); border-radius: 10px; border:1px solid rgba(255,255,255,.07);" id="tr-cars-list">
+                        ${availableCars.length === 0
+                            ? '<div style="padding: 30px; text-align: center; color: var(--text-muted);"><i class="ph ph-car" style="font-size:2rem;"></i><br>Mashinalar topilmadi</div>'
+                            : availableCars.map(c => `
+                            <label class="tr-car-row" data-model="${(c.model||'').toLowerCase()}" data-trim="${(c.trim||'').toLowerCase()}" data-vin="${(c.vin||'').toLowerCase()}"
+                                style="display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:pointer; transition:.15s;"
+                                onmouseover="this.style.background='rgba(99,102,241,.08)'" onmouseout="this.style.background=''"
+                            >
+                                <input type="checkbox" name="tr_car" value="${c.id}" class="tr-checkbox" style="width:17px; height:17px; flex-shrink:0;" onchange="window._trUpdateCount()">
+                                <div style="flex:1; min-width:0;">
+                                    <strong>${c.model || '-'}</strong>
+                                    <span style="color:var(--text-muted); font-size:.82rem; margin-left:6px;">${c.trim || ''}</span>
+                                    <div style="font-size:.78rem; color:var(--text-muted); margin-top:2px;">
+                                        ${c.color_ext ? '🎨 '+c.color_ext : ''}
+                                        ${c.fuel ? ' &bull; ⚡ '+c.fuel : ''}
+                                    </div>
+                                </div>
+                                <div style="font-family:monospace; font-size:.84rem; color:${c.vin ? '#a5b4fc' : 'var(--text-muted)'}; white-space:nowrap; flex-shrink:0;">
+                                    ${c.vin ? c.vin : '<span style="color:var(--text-muted)">VIN yo\'q</span>'}
+                                </div>
+                                <div style="font-size:.82rem; color:#10b981; white-space:nowrap; flex-shrink:0;">
+                                    $${(c.final_cost||0).toLocaleString()}
+                                </div>
+                            </label>
+                        `).join('')}
+                    </div>
+
+                    ${sourceType === 'ordered' ? `
+                    <div class="input-group mt-3">
+                        <label>Bojxona xarajatlari va Yetkazish ($) &mdash; tanlanganlarning <em>barchasiga</em> qo'llanadi</label>
+                        <input type="number" id="tr-extra-fee" placeholder="Masalan: 1500" required>
+                    </div>
+                    ` : ''}
+
+                    <div class="text-right mt-4 flex-gap" style="justify-content:flex-end;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('transfer-modal')">Bekor qilish</button>
+                        <button type="submit" class="btn btn-primary" style="background:var(--accent-color); border-color:var(--accent-color);">
+                            <i class="ph ph-truck"></i> Tanlanganlarni Jo'natish
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // ---- Yordamchi funksiyalar ----
+    window._trSelectAll = (checked) => {
+        document.querySelectorAll('.tr-car-row:not([style*="display: none"]) .tr-checkbox').forEach(cb => cb.checked = checked);
+        window._trUpdateCount();
+    };
+    window._trUpdateCount = () => {
+        const n = document.querySelectorAll('.tr-checkbox:checked').length;
+        const el = document.getElementById('tr-selected-count');
+        if(el) el.textContent = n + ' ta tanlangan';
+    };
+
+    document.getElementById('transfer-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const source = document.getElementById('tr-source').value;
+        const dest   = document.getElementById('tr-dest').value;
+        const checkboxes = document.querySelectorAll('.tr-checkbox:checked');
+        
+        let checkedIds = [];
+        checkboxes.forEach(cb => checkedIds.push(parseInt(cb.value)));
+        
+        if(!dest) { alert("Iltimos, manzilni tanlang!"); return; }
+        if(checkedIds.length === 0) { alert("Yuborish uchun hech qanday mashina tanlanmadi!"); return; }
+
+        let updateData = {};
+        if (dest === 'customs') {
+            const extra = parseFloat(document.getElementById('tr-extra-fee').value) || 0;
+            for(let id of checkedIds) {
+                const c = globalDB.cars.find(x => x.id === id);
+                await _supabase.from('cars').update({
+                    status: 'customs', location: 'customs',
+                    extra: extra, final_cost: (c.factory_price || 0) + extra
+                }).eq('id', id);
+            }
+        } else if (dest.startsWith('dealer_')) {
+            updateData = { status: 'instock', location: dest };
+            const { error } = await _supabase.from('cars').update(updateData).in('id', checkedIds);
+            if(error) { alert("Xato: " + error.message); return; }
+        }
+
+        const destName = globalDB.dealerships.find(d => 'dealer_'+d.id === dest)?.name || dest;
+        alert(`✅ ${checkedIds.length} ta avtomobil "${destName}" ga muvaffaqiyatli ko'chirildi!`);
+        closeModal('transfer-modal');
+        const viewMap = { ordered: 'orders', customs: 'customs', instock: 'inventory' };
+        await refreshDataAndRender(viewMap[source] || source);
+    });
+};
+
+window.filterTransferCars = () => {
+    const vinTerm   = (document.getElementById('tr-search')?.value || '').trim().toLowerCase();
+    const modelTerm = (document.getElementById('tr-filter-model')?.value || '').toLowerCase();
+    const trimTerm  = (document.getElementById('tr-filter-trim')?.value || '').toLowerCase();
+
+    const rows = document.querySelectorAll('#tr-cars-list .tr-car-row');
+    rows.forEach(row => {
+        const rowVin   = (row.dataset.vin || '').toLowerCase();
+        const rowModel = (row.dataset.model || '').toLowerCase();
+        const rowTrim  = (row.dataset.trim || '').toLowerCase();
+
+        // VIN qidirish: oxirgi 4 ta belgiga mos kelishi YOKI to'liq qatorga mos kelishi
+        let vinMatch = true;
+        if (vinTerm) {
+            if (vinTerm.length <= 4) {
+                // Oxirgi N ta raqamlarni tekshiramiz
+                vinMatch = rowVin.endsWith(vinTerm);
+            } else {
+                // To'liq qidirish
+                vinMatch = rowVin.includes(vinTerm);
+            }
+        }
+
+        const modelMatch = !modelTerm || rowModel === modelTerm;
+        const trimMatch  = !trimTerm  || rowTrim === trimTerm;
+
+        const visible = vinMatch && modelMatch && trimMatch;
+        row.style.display = visible ? 'flex' : 'none';
+    });
+
+    window._trUpdateCount();
 }
 
-window.assignToDealer = async (carId) => {
-    const dilerVal = document.getElementById('assign_select_'+carId).value;
-    if(!dilerVal) { alert("Dilerni tanlang!"); return; }
-    
-    // dilerVal = 'dealer_1' or 'dealer_2'
-    const { error } = await _supabase.from('cars').update({
-        status: 'instock',
-        location: dilerVal
-    }).eq('id', carId);
-    
-    if(error) alert("Xato: " + error.message);
-    else {
-        alert("Avtomobil muvaffaqiyatli diler omboriga yo'naltirildi!");
-        await refreshDataAndRender('customs');
-    }
-}
 
 window.openSaleModal = (carId) => {
     const car = globalDB.cars.find(c => c.id === carId);
