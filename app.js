@@ -765,7 +765,9 @@ window.uploadExcel = (event, targetStatus) => {
             if (targetStatus === 'sales') {
                 // SOTUVLAR LOGIKASI (Xavfsiz: avval ma'lumot yig'amiz)
                 let car = globalDB.cars.find(c => c.vin === vin);
-                let carIdToUse = car ? car.id : (Date.now() + index * 1000 + Math.floor(Math.random() * 999));
+                // v31: Non-overlapping mathematical identity
+                const sessionBase = Math.floor(Date.now() / 1000); 
+                let carIdToUse = car ? car.id : (sessionBase * 1000000 + index * 100);
 
                 if (!car) {
                     // Mashina yo'q bo'lsa - yangisidan yig'amiz
@@ -786,7 +788,7 @@ window.uploadExcel = (event, targetStatus) => {
 
                 // b. Sotuv yozuvini tayyorlash (faqat mavjud ustunlar)
                 salesToInsert.push({
-                    id: Date.now() + index * 1000 + Math.floor(Math.random() * 1000000), // UNIQUE ID BACK FOR SALES
+                    id: (sessionBase * 2000000 + index * 100 + Math.floor(Math.random() * 99)), // v31 fix
                     date: row["Date"] ? new Date(row["Date"]).toISOString() : new Date().toISOString(), 
                     car_id: carIdToUse,
                     vin: vin,
@@ -801,7 +803,7 @@ window.uploadExcel = (event, targetStatus) => {
                 // OLDINGI LOGIKA (Orders/Customs/Inventory)
                 for(let i=0; i<qty; i++) {
                     const rowData = {
-                        id: Date.now() + (index * 100) + i + Math.floor(Math.random() * 100000), // UNIQUE ID BACK FOR CARS
+                        id: (Math.floor(Date.now() / 1000) * 1000000 + (index * 100) + i), // v31: Safe distinct BIGINT
                         // Note: Removed 'date' field because it's missing in some DB schemas. 
                         // Using Supabase default created_at instead.
                         model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
