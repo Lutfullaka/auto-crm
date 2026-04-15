@@ -329,14 +329,14 @@ const renderView = (viewId) => {
             <div class="view-header">
                 <h1>В пути</h1>
                 <div class="flex-gap">
-                    <button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>
-                    <button class="btn btn-secondary" onclick="downloadShablon()">📄 Shablon Yuklash (Excel)</button>
-                    <label class="btn btn-secondary" style="margin: 0; cursor: pointer;">
+                    <button class="btn btn-soft-orange" onclick="deleteSelected()"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>
+                    <button class="btn btn-soft-yellow" onclick="downloadShablon()">📄 Shablon Yuklash (Excel)</button>
+                    <label class="btn btn-soft-yellow" style="margin: 0; cursor: pointer;">
                         <i class="ph ph-upload-simple"></i> Exceldan Yuklash
                         <input type="file" id="excel-upload-orders" accept=".xlsx, .xls" class="hidden" onchange="uploadExcel(event, 'ordered')">
                     </label>
-                    <button class="btn btn-primary" onclick="openOrderModal()"><i class="ph ph-plus"></i> Qo'lda Qo'shish</button>
-                    <button class="btn btn-accent" onclick="openTransferModal('ordered')" style="background:var(--accent-color); border-color:var(--accent-color);"><i class="ph ph-truck"></i> Transfer (Yuborish)</button>
+                    <button class="btn btn-soft-blue" onclick="openOrderModal()"><i class="ph ph-plus"></i> Qo'lda Qo'shish</button>
+                    <button class="btn btn-soft-blue" onclick="openTransferModal('ordered')"><i class="ph ph-truck"></i> Transfer (Yuborish)</button>
                 </div>
             </div>
             <div class="table-container">
@@ -380,13 +380,13 @@ const renderView = (viewId) => {
             <div class="view-header">
                 <h1>На таможне</h1>
                 <div class="flex-gap">
-                    <button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>
-                    <button class="btn btn-secondary" onclick="downloadShablon()">📄 Shablon Yuklash (Excel)</button>
-                    <label class="btn btn-secondary" style="margin: 0; cursor: pointer;">
+                    <button class="btn btn-soft-orange" onclick="deleteSelected()"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>
+                    <button class="btn btn-soft-yellow" onclick="downloadShablon()">📄 Shablon Yuklash (Excel)</button>
+                    <label class="btn btn-soft-yellow" style="margin: 0; cursor: pointer;">
                         <i class="ph ph-upload-simple"></i> Bojxona Omboriga Exceldan qabul
                         <input type="file" id="excel-upload-customs" accept=".xlsx, .xls" class="hidden" onchange="uploadExcel(event, 'customs')">
                     </label>
-                    <button class="btn btn-accent" onclick="openTransferModal('customs')" style="background:var(--accent-color); border-color:var(--accent-color);"><i class="ph ph-truck"></i> Transfer (Peremesheniya)</button>
+                    <button class="btn btn-soft-blue" onclick="openTransferModal('customs')"><i class="ph ph-truck"></i> Transfer (Peremesheniya)</button>
                 </div>
             </div>
             <div class="table-container">
@@ -470,8 +470,8 @@ const renderView = (viewId) => {
             <div class="view-header">
                 <h1>${currentUser.role === 'dealer' ? "В наличие" : "Barcha Dilerlar Ombori"}</h1>
                 <div class="flex-gap">
-                    ${currentUser.role === 'admin' ? `<button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>` : ""}
-                    ${currentUser.role === 'admin' ? `<button class="btn btn-accent" onclick="openTransferModal('instock')" style="background:var(--accent-color); border-color:var(--accent-color);"><i class="ph ph-arrows-left-right"></i> Transfer (Dilerga)</button>` : ""}
+                    ${currentUser.role === 'admin' ? `<button class="btn btn-soft-orange" onclick="deleteSelected()"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>` : ""}
+                    ${currentUser.role === 'admin' ? `<button class="btn btn-soft-blue" onclick="openTransferModal('instock')"><i class="ph ph-arrows-left-right"></i> Transfer (Dilerga)</button>` : ""}
                 </div>
             </div>
             <div class="table-container">

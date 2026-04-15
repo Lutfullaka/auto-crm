@@ -178,6 +178,36 @@ input:focus, select:focus {
     color: #fff;
     border: 1px solid #10b981;
 }
+/* NEW SOFT BUTTONS (NEJNIY) */
+.btn-soft-orange {
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #fdba74;
+}
+.btn-soft-orange:hover {
+    background: #ffedd5;
+    border-color: #f97316;
+}
+
+.btn-soft-yellow {
+    background: #fefce8;
+    color: #a16207;
+    border: 1px solid #fef08a;
+}
+.btn-soft-yellow:hover {
+    background: #fef9c3;
+    border-color: #eab308;
+}
+
+.btn-soft-blue {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+.btn-soft-blue:hover {
+    background: #dbeafe;
+    border-color: #3b82f6;
+}
 .btn-accent:hover {
     background: #059669;
     transform: translateY(-1px);
