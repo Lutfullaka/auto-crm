@@ -784,7 +784,7 @@ window.uploadExcel = (event, targetStatus) => {
 
                 // b. Sotuv yozuvini tayyorlash (faqat mavjud ustunlar)
                 salesToInsert.push({
-                    // Note: Removed 'id' field. Letting Supabase handle it.
+                    id: Date.now() + index * 1000 + Math.floor(Math.random() * 1000000), // UNIQUE ID BACK FOR SALES
                     date: row["Date"] ? new Date(row["Date"]).toISOString() : new Date().toISOString(), 
                     car_id: carIdToUse,
                     vin: vin,
