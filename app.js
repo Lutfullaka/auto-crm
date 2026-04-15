@@ -522,7 +522,14 @@ const renderView = (viewId) => {
         html = `
             <div class="view-header">
                 <h1>Sotuvlar Tarixi va Qarzlar</h1>
-                ${currentUser.role === 'dealer' ? `<button class="btn btn-primary" onclick="document.querySelector('.nav-item[data-view=\\'inventory\\']').click()"><i class="ph ph-shopping-cart"></i> Yangi Sotuv qo'shish (Ombordan)</button>` : ''}
+                <div class="flex-gap">
+                    <button class="btn btn-soft-yellow" onclick="downloadShablon('sales')">📄 Shablon Yuklash (Sales)</button>
+                    <label class="btn btn-soft-yellow" style="margin: 0; cursor: pointer;">
+                        <i class="ph ph-upload-simple"></i> Exceldan Yuklash
+                        <input type="file" id="excel-upload-sales" accept=".xlsx, .xls" class="hidden" onchange="uploadExcel(event, 'sales')">
+                    </label>
+                    ${currentUser.role === 'dealer' ? `<button class="btn btn-primary" onclick="document.querySelector('.nav-item[data-view=\\'inventory\\']').click()"><i class="ph ph-shopping-cart"></i> Yangi Sotuv qo'shish (Ombordan)</button>` : ''}
+                </div>
             </div>
             <div class="table-container">
                 <table>
@@ -608,10 +615,29 @@ window.downloadShablon = (type = 'ordered') => {
                 "Спецификация": "630 LIDAR Supreme 6",
                 "Вид топлива": "EV",
                 "Цвет кузова": "White",
-                "Цвет салона": "White",
-                "Вин код Машины": "LFZ63AZ57SH000000",
-                "Количество": 1,
+                "Цвет салоna": "White",
+                "Вин kod Maшiny": "LFZ63AZ57SH000000",
+                "Koличestvo": 1,
                 "Цена": 350000
+            }
+        ];
+    } else if (type === 'sales') {
+        filename = "AutoCRM_Shablon_Sales.xlsx";
+        data = [
+            {
+                "Date": "08.01.2025",
+                "Retail/Dealer Name": "Trend Premium Motors",
+                "Customer": "ALIYEV VALI",
+                "Sales Manager": "Azamat Yusupov",
+                "Pay method": "Polnaya oplata",
+                "Brand": "LEAPMOTOR",
+                "Model": "C11",
+                "Unified Spec": "640 LIDAR Supreme + Fragrance",
+                "VIN": "LFZ63AZ59SD277125",
+                "EV/REEV": "EV",
+                "Exterior color": "Metallic Black",
+                "Interior color": "Floating light gray",
+                "Цена": 384750
             }
         ];
     } else {
@@ -621,13 +647,12 @@ window.downloadShablon = (type = 'ordered') => {
                 "Модель": "Song Plus",
                 "Спецификация": "Flagship 605",
                 "Вид топлива": "Elektro",
-                "Цвет Кузова": "Qora",
+"Цвет Кузова": "Qora",
                 "Цвет Салона": "Jigarrang",
                 "ВИН": "XWW0000000001",
                 "Количество": 1,
                 "Заводская цена": 25000,
-                "Дополнительные расходы": 3000,
-                "Итоговая себестоимость": 28000
+                "Дополнительные расходы": 3000
             }
         ];
     }
@@ -651,11 +676,13 @@ window.uploadExcel = (event, targetStatus) => {
         const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
         
         let loadedCount = 0;
-        const rowsToInsert = [];
+        const carsToInsert = [];
+        const salesToInsert = [];
 
-        // 1. Agar Ombordagi (instock) bo'lsa, dilerlarni tekshiramiz va kerak bo'lsa yaratamiz
-        if (targetStatus === 'instock') {
-            const uniqueDealerNames = [...new Set(json.map(row => (row["Склад"] || "Asosiy Ombor").trim()))];
+        // 1. DILERLARNI TAYYORLASH (instock va sales uchun)
+        if (targetStatus === 'instock' || targetStatus === 'sales') {
+            const dealerColName = targetStatus === 'instock' ? "Склад" : "Retail/Dealer Name";
+            const uniqueDealerNames = [...new Set(json.map(row => (row[dealerColName] || "Asosiy Ombor").toString().trim()))];
             
             for (const name of uniqueDealerNames) {
                 let dealer = globalDB.dealerships.find(d => d.name.toLowerCase() === name.toLowerCase());
@@ -669,54 +696,97 @@ window.uploadExcel = (event, targetStatus) => {
             }
         }
 
-        // 2. Mashinalarni tartiblaymiz
-        json.forEach((row, index) => {
-            const qty = parseInt(row["Количество"]) || 1;
-            
-            // Diler ID sini aniqlash (instock bo'lsa)
-            let dealerId = null;
-            if (targetStatus === 'instock') {
-                const sName = (row["Склад"] || "Asosiy Ombor").trim();
-                const dObj = globalDB.dealerships.find(d => d.name.toLowerCase() === sName.toLowerCase());
-                dealerId = dObj ? dObj.id : null;
-            }
+        // 2. MASHINALAR VA SOTUVLARNI QAYTA ISHLASH
+        for (const [index, row] of json.entries()) {
+            const qty = parseInt(row["Количество"] || row["Koличestvo"]) || 1;
+            const vin = row["VIN"] || row["ВИН"] || row["Вин код Машины"] || "";
+            const dealerColName = targetStatus === 'instock' ? "Склад" : "Retail/Dealer Name";
+            const sName = (row[dealerColName] || "Asosiy Ombor").toString().trim();
+            const dObj = globalDB.dealerships.find(d => d.name.toLowerCase() === sName.toLowerCase());
+            const dealerId = dObj ? dObj.id : null;
 
-            for(let i=0; i<qty; i++) {
-                const rowData = {
-                    id: Date.now() + index * 100 + i,
-                    model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
-                    trim: row["Спецификация"] || "",
-                    fuel: row["Вид топлива"] || "",
-                    vin: row["ВИН"] || row["Вин код Машины"] || "",
-                    color_ext: row["Цвет Кузова"] || row["Цвет кузова"] || "",
-                    color_int: row["Цвет Салона"] || row["Цвет салона"] || "",
-                    status: targetStatus,
-                    location: targetStatus === 'ordered' ? 'china' : (targetStatus === 'customs' ? 'customs' : 'dealer_' + dealerId)
-                };
+            if (targetStatus === 'sales') {
+                // SOTUVLARLOGIKASI
+                // a. Mashinani qidirish
+                let car = globalDB.cars.find(c => c.vin === vin);
+                let carIdToUse = car ? car.id : (Date.now() + index * 1000 + Math.floor(Math.random() * 999));
 
-                // Narxlar mantiqi
-                if (targetStatus === 'instock') {
-                    rowData.price = parseFloat(row["Цена"]) || null;
-                    rowData.factory_price = 0;
+                if (car) {
+                    // Mashina bor ekan - statusini yangilaymiz (agar u sotilmagan bo'lsa)
+                    if (car.status !== 'sold') {
+                        await _supabase.from('cars').update({ 
+                            status: 'sold', 
+                            location: 'dealer_' + dealerId,
+                            price: parseFloat(row["Цена"]) || car.price
+                        }).eq('id', car.id);
+                    }
                 } else {
-                    rowData.factory_price = parseFloat(row["Заводская цена"]) || 0;
-                    rowData.extra = parseFloat(row["Дополнительные расходы"]) || 0;
-                    rowData.final_cost = parseFloat(row["Итоговая себестоимость"]) || 0;
-                    rowData.price = (parseFloat(row["Итоговая себестоимость"]) + 2000) || null;
+                    // Mashina yo'q ekan - yangi 'sotilgan' mashina yaratamiz
+                    carsToInsert.push({
+                        id: carIdToUse,
+                        model: ((row["Brand"] || "") + " " + (row["Model"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
+                        trim: row["Unified Spec"] || row["Спецификация"] || "",
+                        vin: vin,
+                        status: 'sold',
+                        location: 'dealer_' + dealerId,
+                        price: parseFloat(row["Цена"]) || 0
+                    });
                 }
 
-                rowsToInsert.push(rowData);
+                // b. Sotuv yozuvini tayyorlash
+                salesToInsert.push({
+                    id: Date.now() + index * 2000 + Math.floor(Math.random() * 999),
+                    car_id: carIdToUse,
+                    vin: vin,
+                    car_model: ((row["Brand"] || "") + " " + (row["Model"] || "")).trim() || "Noma'lum",
+                    dealer_id: dealerId || 1,
+                    payment_type: row["Pay method"] || "Noma'lum",
+                    customer_name: row["Customer"] || "Noma'lum Mijoz",
+                    price: parseFloat(row["Цена"]) || 0,
+                    created_at: row["Date"] ? new Date(row["Date"]).toISOString() : new Date().toISOString()
+                });
                 loadedCount++;
-            }
-        });
+            } else {
+                // OLDINGI LOGIKA (Orders/Customs/Inventory)
+                for(let i=0; i<qty; i++) {
+                    const rowData = {
+                        id: Date.now() + index * 100 + i,
+                        model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
+                        trim: row["Спецификация"] || "",
+                        fuel: row["Вид топлива"] || "",
+                        vin: vin,
+                        color_ext: row["Цвет Кузова"] || row["Цвет кузова"] || row["Exterior color"] || "",
+                        color_int: row["Цвет Салона"] || row["Цвет салона"] || row["Interior color"] || "",
+                        status: targetStatus,
+                        location: targetStatus === 'ordered' ? 'china' : (targetStatus === 'customs' ? 'customs' : 'dealer_' + dealerId)
+                    };
 
-        // 3. Bazaga Saqlash
-        if(rowsToInsert.length > 0) {
-            const { error } = await _supabase.from('cars').insert(rowsToInsert);
-            if(error) alert("Xatolik yuz berdi: " + error.message);
+                    if (targetStatus === 'instock') {
+                        rowData.price = parseFloat(row["Цена"]) || null;
+                        rowData.factory_price = 0;
+                    } else {
+                        rowData.factory_price = parseFloat(row["Заводская цена"]) || 0;
+                        rowData.extra = parseFloat(row["Дополнительные расходы"]) || 0;
+                        rowData.final_cost = parseFloat(row["Итоговая себестоимость"]) || 0;
+                        rowData.price = (parseFloat(row["Итоговая себестоимость"]) + 2000) || null;
+                    }
+                    carsToInsert.push(rowData);
+                    loadedCount++;
+                }
+            }
         }
 
-        alert(`Muvaffaqiyatli ${loadedCount} ta avtomobil Excel dan qabul qilindi!`);
+        // 3. BAZAGA YUKLASH
+        if (carsToInsert.length > 0) {
+            const { error: cError } = await _supabase.from('cars').insert(carsToInsert);
+            if(cError) console.error("Cars insert error:", cError);
+        }
+        if (salesToInsert.length > 0) {
+            const { error: sError } = await _supabase.from('sales').insert(salesToInsert);
+            if(sError) alert("Sotuvlarni saqlashda xato: " + sError.message);
+        }
+
+        alert(`Muvaffaqiyatli ${loadedCount} ta yozuv Excel dan qabul qilindi!`);
         document.body.style.opacity = '1';
         await refreshDataAndRender(targetStatus === 'ordered' ? 'orders' : (targetStatus === 'customs' ? 'customs' : 'inventory'));
         event.target.value = ""; 
