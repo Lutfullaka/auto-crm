@@ -81,9 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    document.getElementById('theme-toggle').addEventListener('click', () => {
-        document.body.classList.toggle('light-theme');
-    });
+    // Theme toggle o'chirildi (Topbar bilan birga)
 });
 
 const showDashboard = () => {
