@@ -522,7 +522,7 @@ const renderView = (viewId) => {
         html = `
             <div class="view-header">
                 <h1>Sotuvlar Tarixi va Qarzlar</h1>
-                <div class="flex-gap">
+                <div style="display: flex; gap: 10px; align-items: center;">
                     <button class="btn btn-soft-yellow" onclick="downloadShablon('sales')">📄 Shablon Yuklash (Sales)</button>
                     <label class="btn btn-soft-yellow" style="margin: 0; cursor: pointer;">
                         <i class="ph ph-upload-simple"></i> Exceldan Yuklash
