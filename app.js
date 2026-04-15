@@ -38,6 +38,29 @@ const refreshDB = async () => {
     }
 };
 
+// --- Ma'lumotlarni Qayta Tiklash (Admin uchun maxsus funksiya) ---
+const recoverOrphanedCars = async () => {
+    if (!confirm("Sotuv hujjati bo'lmagan, lekin 'sotilgan' deb qolgan mashinalarni qaytarishni xohlaysizmi?")) return;
+    
+    // 1. Bazadan 'sold' statusidagi mashinalarni olamiz
+    const soldCars = globalDB.cars.filter(c => c.status === 'sold');
+    let fixedCount = 0;
+    
+    for (const car of soldCars) {
+        // 2. Ushbu mashina uchun sotuv hujjati bormi?
+        const hasSale = globalDB.sales.some(s => s.vin === car.vin || s.car_id === car.id);
+        
+        if (!hasSale) {
+            // 3. 'Etim' mashinani 'instock' (Ombor)ga qaytaramiz
+            const { error } = await _supabase.from('cars').update({ status: 'instock' }).eq('id', car.id);
+            if (!error) fixedCount++;
+        }
+    }
+    
+    alert(`${fixedCount} ta 'etim' mashina omborga qaytarildi!`);
+    refreshDataAndRender('dashboard');
+};
+
 const refreshDataAndRender = async (viewId) => {
     // Show a small loader if we want, but Supabase is fast enough
     await refreshDB();
@@ -171,10 +194,15 @@ const renderView = (viewId) => {
 
         html = `
             <div class="view-header mb-4 mt-2">
-                <h1>Asosiy Boshqaruv Paneli</h1>
-                <span style="font-size:0.85rem; color:var(--text-muted);">
-                    ${now.toLocaleDateString('uz-UZ', {day:'numeric', month:'long', year:'numeric'})} holatiga ko'ra
-                </span>
+                <div>
+                    <h1>Asosiy Boshqaruv Paneli</h1>
+                    <span style="font-size:0.85rem; color:var(--text-muted);">
+                        ${now.toLocaleDateString('uz-UZ', {day:'numeric', month:'long', year:'numeric'})} holatiga ko'ra
+                    </span>
+                </div>
+                <div class="flex-gap">
+                    ${currentUser.role === 'admin' ? '<button class="btn btn-soft-yellow" onclick="recoverOrphanedCars()"><i class="ph ph-wrench"></i> Ma\'lumotlarni qayta tiklash</button>' : ''}
+                </div>
             </div>
 
             <!-- KPI kartalar -->
@@ -711,31 +739,25 @@ window.uploadExcel = (event, targetStatus) => {
             const dealerId = dObj ? dObj.id : null;
 
             if (targetStatus === 'sales') {
-                // SOTUVLARLOGIKASI
-                // a. Mashinani qidirish
+                // SOTUVLAR LOGIKASI (Xavfsiz: avval ma'lumot yig'amiz)
                 let car = globalDB.cars.find(c => c.vin === vin);
                 let carIdToUse = car ? car.id : (Date.now() + index * 1000 + Math.floor(Math.random() * 999));
 
-                if (car) {
-                    // Mashina bor ekan - statusini yangilaymiz (agar u sotilmagan bo'lsa)
-                    if (car.status !== 'sold') {
-                        await _supabase.from('cars').update({ 
-                            status: 'sold', 
-                            location: 'dealer_' + dealerId,
-                            price: parseFloat(row["Цена"]) || car.price
-                        }).eq('id', car.id);
-                    }
-                } else {
-                    // Mashina yo'q ekan - yangi 'sotilgan' mashina yaratamiz
+                if (!car) {
+                    // Mashina yo'q bo'lsa - yangisidat yig'amiz
                     carsToInsert.push({
                         id: carIdToUse,
-                        model: ((row["Brand"] || "") + " " + (row["Model"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
+                        model: ((row["Brand"] || "") + " " + (row["Model"] || "")).trim() || row["Ноmenklatura"] || "Noma'lum Avto",
                         trim: row["Unified Spec"] || row["Спецификация"] || "",
                         vin: vin,
                         status: 'sold',
                         location: 'dealer_' + dealerId,
                         price: parseFloat(row["Цена"]) || 0
                     });
+                }
+                // Statusni yangilash uchun ID larni yig'ib boramiz (Loop ichida update qilmaymiz!)
+                if (car && car.status !== 'sold') {
+                    // carIdToUpdate statusini keyinroq bulk update qilamiz yoki sError yo'qligida update qilamiz
                 }
 
                 // b. Sotuv yozuvini tayyorlash (faqat mavjud ustunlar)
@@ -785,9 +807,33 @@ window.uploadExcel = (event, targetStatus) => {
             const { error: cError } = await _supabase.from('cars').insert(carsToInsert);
             if(cError) console.error("Cars insert error:", cError);
         }
+
         if (salesToInsert.length > 0) {
             const { error: sError } = await _supabase.from('sales').insert(salesToInsert);
-            if(sError) alert("Sotuvlarni saqlashda xato: " + sError.message);
+            if(sError) {
+                alert("Sotuvlarni saqlashda xato: " + sError.message);
+            } else {
+                // FAQAT SOTUVLAR MUVAFFARIYATLI YOZILGANDAN KEYIN MASHINALAR STATUSINI O'ZGARTIRAMIZ
+                if (targetStatus === 'sales') {
+                    for (const row of json) {
+                        const vin = row["VIN"] || row["ВИН"] || "";
+                        const car = globalDB.cars.find(c => c.vin === vin);
+                        if (car && car.status !== 'sold') {
+                             const dealerColName = "Retail/Dealer Name";
+                             const sName = (row[dealerColName] || "Asosiy Ombor").toString().trim();
+                             const dObj = globalDB.dealerships.find(d => d.name.toLowerCase() === sName.toLowerCase());
+                             const dealerId = dObj ? dObj.id : null;
+                             
+                             await _supabase.from('cars').update({ 
+                                 status: 'sold', 
+                                 location: 'dealer_' + dealerId,
+                                 price: parseFloat(row["Цена"]) || car.price
+                             }).eq('id', car.id);
+                        }
+                    }
+                }
+            }
+        }
         }
 
         alert(`Muvaffaqiyatli ${loadedCount} ta yozuv Excel dan qabul qilindi!`);
