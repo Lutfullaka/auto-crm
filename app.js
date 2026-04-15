@@ -177,7 +177,8 @@ const renderView = (viewId) => {
             return { label: monthNames[d.getMonth()] + ' ' + d.getFullYear(), month: d.getMonth(), year: d.getFullYear(), count: 0, revenue: 0 };
         });
         db.sales.forEach(s => {
-            const d = new Date(s.date || Date.now()); // SAFE DATE
+            const dStr = s.date || s.created_at || new Date().toISOString();
+            const d = new Date(dStr);
             const slot = last6Months.find(m => m.month === d.getMonth() && m.year === d.getFullYear());
             if (slot) { slot.count++; slot.revenue += parseFloat(s.price) || 0; }
         });
@@ -187,7 +188,8 @@ const renderView = (viewId) => {
         const lastMonth = last6Months[last6Months.length - 1];
         const prevMonth = last6Months[last6Months.length - 2];
         const lastMonthSales = db.sales.filter(s => {
-            const d = new Date(s.date || Date.now()); // SAFE DATE
+            const dStr = s.date || s.created_at || new Date().toISOString();
+            const d = new Date(dStr);
             return d.getMonth() === lastMonth.month && d.getFullYear() === lastMonth.year;
         });
         const lastRevenue = lastMonth.revenue;
@@ -798,7 +800,8 @@ window.uploadExcel = (event, targetStatus) => {
                 for(let i=0; i<qty; i++) {
                     const rowData = {
                         id: Date.now() + index * 100 + i,
-                        date: row["Date"] ? new Date(row["Date"]).toISOString() : new Date().toISOString(), // ADDED DATE
+                        // Note: Removed 'date' field because it's missing in some DB schemas. 
+                        // Using Supabase default created_at instead.
                         model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
                         trim: row["Спецификация"] || "",
                         fuel: row["Вид топлива"] || "",
@@ -825,15 +828,21 @@ window.uploadExcel = (event, targetStatus) => {
         }
 
         // 3. BAZAGA YUKLASH
+        let hasError = false;
         if (carsToInsert.length > 0) {
             const { error: cError } = await _supabase.from('cars').insert(carsToInsert);
-            if(cError) console.error("Cars insert error:", cError);
+            if(cError) {
+                console.error("Cars insert error:", cError);
+                alert("Mashinalarni saqlashda xato: " + cError.message);
+                hasError = true;
+            }
         }
 
-        if (salesToInsert.length > 0) {
+        if (salesToInsert.length > 0 && !hasError) {
             const { error: sError } = await _supabase.from('sales').insert(salesToInsert);
             if(sError) {
                 alert("Sotuvlarni saqlashda xato: " + sError.message);
+                hasError = true;
             } else {
                 // FAQAT SOTUVLAR MUVAFFARIYATLI YOZILGANDAN KEYIN MASHINALAR STATUSINI O'ZGARTIRAMIZ
                 if (targetStatus === 'sales') {
@@ -857,7 +866,9 @@ window.uploadExcel = (event, targetStatus) => {
             }
         }
 
-        alert(`Muvaffaqiyatli ${loadedCount} ta yozuv Excel dan qabul qilindi!`);
+        if (!hasError) {
+            alert(`Muvaffaqiyatli ${loadedCount} ta yozuv Excel dan qabul qilindi!`);
+        }
         document.body.style.opacity = '1';
         await refreshDataAndRender(targetStatus === 'ordered' ? 'orders' : (targetStatus === 'customs' ? 'customs' : 'inventory'));
         event.target.value = ""; 
