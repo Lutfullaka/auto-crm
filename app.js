@@ -175,19 +175,19 @@ const renderView = (viewId) => {
             <!-- KPI kartalar -->
             <div class="stats-grid mb-6">
                 <div class="stat-card">
-                    <div class="stat-title">Xitoyda (Zavod)</div>
+                    <div class="stat-title">В пути</div>
                     <div class="stat-value">${totalChina} <small style="font-size:1rem">ta</small></div>
                     <div class="stat-subtitle"><span>Buyurtmada</span></div>
                     <i class="ph ph-factory stat-icon"></i>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-title">Bojxonada</div>
+                    <div class="stat-title">На таможне</div>
                     <div class="stat-value text-warning">${totalCustoms} <small style="font-size:1rem">ta</small></div>
                     <div class="stat-subtitle"><span>Kutilmoqda</span></div>
                     <i class="ph ph-truck stat-icon"></i>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-title">Omborlarda</div>
+                    <div class="stat-title">В наличие</div>
                     <div class="stat-value text-success">${totalDealers} <small style="font-size:1rem">ta</small></div>
                     <div class="stat-subtitle"><span>Sotuvga tayyor</span></div>
                     <i class="ph ph-storefront stat-icon"></i>
@@ -327,7 +327,7 @@ const renderView = (viewId) => {
         const chinaCars = db.cars.filter(c => c.status === 'ordered');
         html = `
             <div class="view-header">
-                <h1>Xitoydan kelayotgan</h1>
+                <h1>В пути</h1>
                 <div class="flex-gap">
                     <button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>
                     <button class="btn btn-secondary" onclick="downloadShablon()">📄 Shablon Yuklash (Excel)</button>
@@ -378,7 +378,7 @@ const renderView = (viewId) => {
         
         html = `
             <div class="view-header">
-                <h1>Bojxona (Tamojnya) Ombordagi Mashinalar</h1>
+                <h1>На таможне</h1>
                 <div class="flex-gap">
                     <button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>
                     <button class="btn btn-secondary" onclick="downloadShablon()">📄 Shablon Yuklash (Excel)</button>
@@ -467,8 +467,8 @@ const renderView = (viewId) => {
         if (dealerId) myCars = myCars.filter(c => c.location === 'dealer_' + dealerId);
 
         html = `
-             <div class="view-header">
-                <h1>${currentUser.role === 'dealer' ? "Mening Omborim (V nalichii)" : "Barcha Dilerlar Ombori"}</h1>
+            <div class="view-header">
+                <h1>${currentUser.role === 'dealer' ? "В наличие" : "Barcha Dilerlar Ombori"}</h1>
                 <div class="flex-gap">
                     ${currentUser.role === 'admin' ? `<button class="btn btn-secondary" onclick="deleteSelected()" style="background:var(--danger); border-color:var(--danger);"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>` : ""}
                     ${currentUser.role === 'admin' ? `<button class="btn btn-accent" onclick="openTransferModal('instock')" style="background:var(--accent-color); border-color:var(--accent-color);"><i class="ph ph-arrows-left-right"></i> Transfer (Dilerga)</button>` : ""}
@@ -721,9 +721,9 @@ window.openTransferModal = (sourceType) => {
     let availableCars = globalDB.cars.filter(c => c.status === sourceType);
     let transferSet = new Set(); // Tanlab olinganlar (ID'lar)
     
-    const sourceLabel = sourceType === 'ordered' ? 'Xitoy Buyurtmalari' : (sourceType === 'customs' ? 'Bojxona' : 'Ombor');
+    const sourceLabel = sourceType === 'ordered' ? 'В пути' : (sourceType === 'customs' ? 'На таможне' : 'В наличие');
     const dealersOptions = globalDB.dealerships.map(d => `<option value="dealer_${d.id}">${d.name}</option>`).join('');
-    let destHtml = sourceType === 'ordered' ? `<option value="customs">Bojxona (Tamojnya) Ombori</option>` : dealersOptions;
+    let destHtml = sourceType === 'ordered' ? `<option value="customs">На таможне</option>` : dealersOptions;
 
     const modalHtml = `
         <div class="modal-overlay" id="transfer-modal">
