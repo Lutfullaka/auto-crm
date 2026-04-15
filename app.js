@@ -784,8 +784,8 @@ window.uploadExcel = (event, targetStatus) => {
 
                 // b. Sotuv yozuvini tayyorlash (faqat mavjud ustunlar)
                 salesToInsert.push({
-                    id: Date.now() + index * 2000 + Math.floor(Math.random() * 999),
-                    date: row["Date"] ? new Date(row["Date"]).toISOString() : new Date().toISOString(), // ADDED DATE
+                    // Note: Removed 'id' field. Letting Supabase handle it.
+                    date: row["Date"] ? new Date(row["Date"]).toISOString() : new Date().toISOString(), 
                     car_id: carIdToUse,
                     vin: vin,
                     car_model: ((row["Brand"] || "") + " " + (row["Model"] || "")).trim() || "Noma'lum",
@@ -799,7 +799,7 @@ window.uploadExcel = (event, targetStatus) => {
                 // OLDINGI LOGIKA (Orders/Customs/Inventory)
                 for(let i=0; i<qty; i++) {
                     const rowData = {
-                        id: Date.now() + index * 100 + i,
+                        // Note: Removed 'id' field. Letting Supabase generate unique IDs automatically.
                         // Note: Removed 'date' field because it's missing in some DB schemas. 
                         // Using Supabase default created_at instead.
                         model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
