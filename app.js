@@ -38,6 +38,27 @@ const refreshDB = async () => {
     }
 };
 
+// --- Tizimni Tozalash (Hammasini o'chirish) ---
+const wipeAllData = async () => {
+    if (!confirm("DIQQAT! Barcha mashinalar va sotuvlar butunlay o'chiriladi. Ushbu amalni qaytarib bo'lmaydi. Rozimisiz?")) return;
+    
+    try {
+        // 1. Sotuvlarni o'chirish
+        const { error: sErr } = await _supabase.from('sales').delete().neq('id', 0);
+        // 2. Mashinalarni o'chirish
+        const { error: cErr } = await _supabase.from('cars').delete().neq('id', 0);
+        
+        if (sErr || cErr) {
+            alert("O'chirishda xatolik: " + (sErr?.message || cErr?.message));
+        } else {
+            alert("Barcha ma'lumotlar tozalandi!");
+            refreshDataAndRender('dashboard');
+        }
+    } catch (err) {
+        alert("Xatolik: " + err.message);
+    }
+};
+
 // --- Ma'lumotlarni Qayta Tiklash (Admin uchun maxsus funksiya) ---
 const recoverOrphanedCars = async () => {
     if (!confirm("Sotuv hujjati bo'lmagan, lekin 'sotilgan' deb qolgan mashinalarni qaytarishni xohlaysizmi?")) return;
@@ -158,7 +179,7 @@ const renderView = (viewId) => {
             return { label: monthNames[d.getMonth()] + ' ' + d.getFullYear(), month: d.getMonth(), year: d.getFullYear(), count: 0, revenue: 0 };
         });
         db.sales.forEach(s => {
-            const d = new Date(s.date);
+            const d = new Date(s.date || Date.now()); // SAFE DATE
             const slot = last6Months.find(m => m.month === d.getMonth() && m.year === d.getFullYear());
             if (slot) { slot.count++; slot.revenue += parseFloat(s.price) || 0; }
         });
@@ -168,7 +189,7 @@ const renderView = (viewId) => {
         const lastMonth = last6Months[last6Months.length - 1];
         const prevMonth = last6Months[last6Months.length - 2];
         const lastMonthSales = db.sales.filter(s => {
-            const d = new Date(s.date);
+            const d = new Date(s.date || Date.now()); // SAFE DATE
             return d.getMonth() === lastMonth.month && d.getFullYear() === lastMonth.year;
         });
         const lastRevenue = lastMonth.revenue;
@@ -201,7 +222,8 @@ const renderView = (viewId) => {
                     </span>
                 </div>
                 <div class="flex-gap">
-                    ${currentUser.role === 'admin' ? '<button class="btn btn-soft-yellow" onclick="recoverOrphanedCars()"><i class="ph ph-wrench"></i> Ma\'lumotlarni qayta tiklash</button>' : ''}
+                    ${currentUser.role === 'admin' ? '<button class="btn btn-soft-yellow" onclick="recoverOrphanedCars()"><i class="ph ph-wrench"></i> Tiklash</button>' : ''}
+                    ${currentUser.role === 'admin' ? '<button class="btn btn-outline-danger" onclick="wipeAllData()"><i class="ph ph-trash"></i> Tizimni tozalash</button>' : ''}
                 </div>
             </div>
 
@@ -763,6 +785,7 @@ window.uploadExcel = (event, targetStatus) => {
                 // b. Sotuv yozuvini tayyorlash (faqat mavjud ustunlar)
                 salesToInsert.push({
                     id: Date.now() + index * 2000 + Math.floor(Math.random() * 999),
+                    date: row["Date"] ? new Date(row["Date"]).toISOString() : new Date().toISOString(), // ADDED DATE
                     car_id: carIdToUse,
                     vin: vin,
                     car_model: ((row["Brand"] || "") + " " + (row["Model"] || "")).trim() || "Noma'lum",
@@ -777,12 +800,13 @@ window.uploadExcel = (event, targetStatus) => {
                 for(let i=0; i<qty; i++) {
                     const rowData = {
                         id: Date.now() + index * 100 + i,
+                        date: row["Date"] ? new Date(row["Date"]).toISOString() : new Date().toISOString(), // ADDED DATE
                         model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
                         trim: row["Спецификация"] || "",
                         fuel: row["Вид топлива"] || "",
                         vin: vin,
                         color_ext: row["Цвет Кузова"] || row["Цвет кузова"] || row["Exterior color"] || "",
-                        color_int: row["Цвет Салона"] || row["Цвет салона"] || row["Interior color"] || "",
+                        color_int: row["Цвет Саloна"] || row["Цвет салона"] || row["Interior color"] || "",
                         status: targetStatus,
                         location: targetStatus === 'ordered' ? 'china' : (targetStatus === 'customs' ? 'customs' : 'dealer_' + dealerId)
                     };
