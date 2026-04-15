@@ -4,6 +4,7 @@
 const supabaseUrl = 'https://xyubrbbvjufifrilrbab.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5dWJyYmJ2anVmaWZyaWxyYmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNTUxMzksImV4cCI6MjA5MTczMTEzOX0.UwBygN8dBeMu-dhAERuLFjzAlH5DsTaum_SwxsnbYa4';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+console.log("%c Auto-CRM v32 (Precision Sync) is running.", "color: #2ecc71; font-weight: bold; font-size: 14px;");
 
 // --- Holat (State) ---
 let currentUser = null;
@@ -217,7 +218,7 @@ const renderView = (viewId) => {
         html = `
             <div class="view-header mb-4 mt-2">
                 <div>
-                    <h1>Asosiy Boshqaruv Paneli</h1>
+                    <h1>Asosiy Boshqaruv Paneli <small style="font-size: 10px; color: #888;">v32 (Robust Sync)</small></h1>
                     <span style="font-size:0.85rem; color:var(--text-muted);">
                         ${now.toLocaleDateString('uz-UZ', {day:'numeric', month:'long', year:'numeric'})} holatiga ko'ra
                     </span>
