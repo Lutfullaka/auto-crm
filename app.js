@@ -755,7 +755,8 @@ window.uploadExcel = (event, targetStatus) => {
         // 2. MASHINALAR VA SOTUVLARNI QAYTA ISHLASH
         for (const [index, row] of json.entries()) {
             const qty = parseInt(row["Количество"] || row["Koличestvo"]) || 1;
-            const vin = row["VIN"] || row["ВИН"] || row["Вин код Машины"] || "";
+            const vin = (row["VIN"] || row["ВИН"] || row["Вин код Машины"] || "").toString().trim();
+            if (!vin) continue; // SKIP EMPTY VINS - Safer for DB
             const dealerColName = targetStatus === 'instock' ? "Склад" : "Retail/Dealer Name";
             const sName = (row[dealerColName] || "Asosiy Ombor").toString().trim();
             const dObj = globalDB.dealerships.find(d => d.name.toLowerCase() === sName.toLowerCase());
@@ -767,9 +768,9 @@ window.uploadExcel = (event, targetStatus) => {
                 let carIdToUse = car ? car.id : (Date.now() + index * 1000 + Math.floor(Math.random() * 999));
 
                 if (!car) {
-                    // Mashina yo'q bo'lsa - yangisidat yig'amiz
+                    // Mashina yo'q bo'lsa - yangisidan yig'amiz
                     carsToInsert.push({
-                        id: carIdToUse,
+                        id: carIdToUse, // RESTORED ID FOR SALES BRANCH TOO
                         model: ((row["Brand"] || "") + " " + (row["Model"] || "")).trim() || row["Ноmenklatura"] || "Noma'lum Avto",
                         trim: row["Unified Spec"] || row["Спецификация"] || "",
                         vin: vin,
