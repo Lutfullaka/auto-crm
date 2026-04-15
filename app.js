@@ -16,22 +16,17 @@ const refreshDB = async () => {
         const [u, d, c, s, cust] = await Promise.all([
             _supabase.from('users').select('*'),
             _supabase.from('dealerships').select('*'),
-            _supabase.from('cars').select('*').order('id', {ascending: false}),
-            _supabase.from('sales').select('*').order('id', {ascending: false}), // FIXED: used 'id' instead of 'date'
-            _supabase.from('customers').select('*').order('id', {ascending: false})
+            _supabase.from('cars').select('*'),
+            _supabase.from('sales').select('*'),
+            _supabase.from('customers').select('*')
         ]);
         
-        // Granular error reporting
-        if (u.error) console.error("Users error:", u.error.message);
-        if (d.error) console.error("Dealers error:", d.error.message);
-        if (c.error) console.error("Cars error:", c.error.message);
-        if (s.error) console.error("Sales error:", s.error.message);
-        if (cust.error) console.error("Customers error:", cust.error.message);
-
-        const someError = u.error || d.error || c.error || s.error || cust.error;
-        if (someError) {
-            alert("Bazadan ma'lumot olishda qisman xatolik yuz berdi. Console ni tekshiring.");
-        }
+        // Detailed error check
+        if (u.error) alert("Users: " + u.error.message);
+        if (d.error) alert("Dealers: " + d.error.message);
+        if (c.error) alert("Cars: " + c.error.message);
+        if (s.error) alert("Sales: " + s.error.message);
+        if (cust.error) alert("Customers: " + cust.error.message);
         
         globalDB.users = u.data || [];
         globalDB.dealerships = d.data || [];
