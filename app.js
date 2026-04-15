@@ -858,7 +858,6 @@ window.uploadExcel = (event, targetStatus) => {
                 }
             }
         }
-        }
 
         alert(`Muvaffaqiyatli ${loadedCount} ta yozuv Excel dan qabul qilindi!`);
         document.body.style.opacity = '1';
