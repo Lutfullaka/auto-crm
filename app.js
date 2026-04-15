@@ -470,6 +470,11 @@ const renderView = (viewId) => {
             <div class="view-header">
                 <h1>${currentUser.role === 'dealer' ? "В наличие" : "Barcha Dilerlar Ombori"}</h1>
                 <div class="flex-gap">
+                    <button class="btn btn-soft-yellow" onclick="downloadShablon('instock')">📄 Shablon Yuklash (Excel)</button>
+                    <label class="btn btn-soft-yellow" style="margin: 0; cursor: pointer;">
+                        <i class="ph ph-upload-simple"></i> Exceldan Yuklash
+                        <input type="file" id="excel-upload-inventory" accept=".xlsx, .xls" class="hidden" onchange="uploadExcel(event, 'instock')">
+                    </label>
                     ${currentUser.role === 'admin' ? `<button class="btn btn-soft-orange" onclick="deleteSelected()"><i class="ph ph-trash"></i> Tanlanganlarni O'chirish</button>` : ""}
                     ${currentUser.role === 'admin' ? `<button class="btn btn-soft-blue" onclick="openTransferModal('instock')"><i class="ph ph-arrows-left-right"></i> Transfer (Dilerga)</button>` : ""}
                 </div>
@@ -588,25 +593,49 @@ const renderView = (viewId) => {
 };
 
 // --- Modal & Utility Functions ---
-window.downloadShablon = () => {
-    const ws = XLSX.utils.json_to_sheet([
-        {
-            "Марка": "BYD",
-            "Модель": "Song Plus",
-            "Спецификация": "Flagship 605",
-            "Вид топлива": "Elektro",
-            "Цвет Кузова": "Qora",
-            "Цвет Салона": "Jigarrang",
-            "ВИН": "XWW0000000001",
-            "Количество": 1,
-            "Заводская цена": 25000,
-            "Дополнительные расходы": 3000,
-            "Итоговая себестоимость": 28000
-        }
-    ]);
+window.downloadShablon = (type = 'ordered') => {
+    let data = [];
+    let filename = "AutoCRM_Shablon_Orders.xlsx";
+
+    if (type === 'instock') {
+        filename = "AutoCRM_Shablon_Inventory.xlsx";
+        data = [
+            {
+                "Склад": "Test Drive",
+                "Номенклатура": "Leapmotor C16 EV 630 Lidar",
+                "Марка": "LEAPMOTOR",
+                "Модель": "C16",
+                "Спецификация": "630 LIDAR Supreme 6",
+                "Вид топлива": "EV",
+                "Цвет кузова": "White",
+                "Цвет салона": "White",
+                "Вин код Машины": "LFZ63AZ57SH000000",
+                "Количество": 1,
+                "Цена": 350000
+            }
+        ];
+    } else {
+        data = [
+            {
+                "Марка": "BYD",
+                "Модель": "Song Plus",
+                "Спецификация": "Flagship 605",
+                "Вид топлива": "Elektro",
+                "Цвет Кузова": "Qora",
+                "Цвет Салона": "Jigarrang",
+                "ВИН": "XWW0000000001",
+                "Количество": 1,
+                "Заводская цена": 25000,
+                "Дополнительные расходы": 3000,
+                "Итоговая себестоимость": 28000
+            }
+        ];
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Shablon");
-    XLSX.writeFile(wb, "AutoCRM_Yuklash_Shabloni.xlsx");
+    XLSX.writeFile(wb, filename);
 };
 
 window.uploadExcel = (event, targetStatus) => { 
@@ -624,37 +653,72 @@ window.uploadExcel = (event, targetStatus) => {
         let loadedCount = 0;
         const rowsToInsert = [];
 
+        // 1. Agar Ombordagi (instock) bo'lsa, dilerlarni tekshiramiz va kerak bo'lsa yaratamiz
+        if (targetStatus === 'instock') {
+            const uniqueDealerNames = [...new Set(json.map(row => (row["Склад"] || "Asosiy Ombor").trim()))];
+            
+            for (const name of uniqueDealerNames) {
+                let dealer = globalDB.dealerships.find(d => d.name.toLowerCase() === name.toLowerCase());
+                if (!dealer) {
+                    console.log(`Yangi diler yaratilmoqda: ${name}`);
+                    const { data: newDealer, error: dError } = await _supabase.from('dealerships').insert({ name: name }).select();
+                    if (!dError && newDealer) {
+                        globalDB.dealerships.push(newDealer[0]);
+                    }
+                }
+            }
+        }
+
+        // 2. Mashinalarni tartiblaymiz
         json.forEach((row, index) => {
             const qty = parseInt(row["Количество"]) || 1;
+            
+            // Diler ID sini aniqlash (instock bo'lsa)
+            let dealerId = null;
+            if (targetStatus === 'instock') {
+                const sName = (row["Склад"] || "Asosiy Ombor").trim();
+                const dObj = globalDB.dealerships.find(d => d.name.toLowerCase() === sName.toLowerCase());
+                dealerId = dObj ? dObj.id : null;
+            }
+
             for(let i=0; i<qty; i++) {
-                rowsToInsert.push({
+                const rowData = {
                     id: Date.now() + index * 100 + i,
-                    model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || "Noma'lum Avto",
+                    model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
                     trim: row["Спецификация"] || "",
                     fuel: row["Вид топлива"] || "",
-                    vin: row["ВИН"] || "",
-                    color_ext: row["Цвет Кузова"] || "",
-                    color_int: row["Цвет Салона"] || "",
-                    factory_price: parseFloat(row["Заводская цена"]) || 0,
-                    extra: parseFloat(row["Дополнительные расходы"]) || 0,
-                    final_cost: parseFloat(row["Итоговая себестоимость"]) || 0,
-                    price: (parseFloat(row["Итоговая себестоимость"]) + 2000) || null,
+                    vin: row["ВИН"] || row["Вин код Машины"] || "",
+                    color_ext: row["Цвет Кузова"] || row["Цвет кузова"] || "",
+                    color_int: row["Цвет Салона"] || row["Цвет салона"] || "",
                     status: targetStatus,
-                    location: targetStatus === 'ordered' ? 'china' : 'customs'
-                });
+                    location: targetStatus === 'ordered' ? 'china' : (targetStatus === 'customs' ? 'customs' : 'dealer_' + dealerId)
+                };
+
+                // Narxlar mantiqi
+                if (targetStatus === 'instock') {
+                    rowData.price = parseFloat(row["Цена"]) || null;
+                    rowData.factory_price = 0;
+                } else {
+                    rowData.factory_price = parseFloat(row["Заводская цена"]) || 0;
+                    rowData.extra = parseFloat(row["Дополнительные расходы"]) || 0;
+                    rowData.final_cost = parseFloat(row["Итоговая себестоимость"]) || 0;
+                    rowData.price = (parseFloat(row["Итоговая себестоимость"]) + 2000) || null;
+                }
+
+                rowsToInsert.push(rowData);
                 loadedCount++;
             }
         });
 
-        // Insert to Supabase DB
+        // 3. Bazaga Saqlash
         if(rowsToInsert.length > 0) {
             const { error } = await _supabase.from('cars').insert(rowsToInsert);
             if(error) alert("Xatolik yuz berdi: " + error.message);
         }
 
-        alert(`Bazasiga muvaffaqiyatli ${loadedCount} ta avtomobil Excel dan qabul qilindi!`);
+        alert(`Muvaffaqiyatli ${loadedCount} ta avtomobil Excel dan qabul qilindi!`);
         document.body.style.opacity = '1';
-        await refreshDataAndRender(targetStatus === 'ordered' ? 'orders' : 'customs');
+        await refreshDataAndRender(targetStatus === 'ordered' ? 'orders' : (targetStatus === 'customs' ? 'customs' : 'inventory'));
         event.target.value = ""; 
     };
     reader.readAsArrayBuffer(file);
