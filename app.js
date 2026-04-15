@@ -800,7 +800,7 @@ window.uploadExcel = (event, targetStatus) => {
                 // OLDINGI LOGIKA (Orders/Customs/Inventory)
                 for(let i=0; i<qty; i++) {
                     const rowData = {
-                        // Note: Removed 'id' field. Letting Supabase generate unique IDs automatically.
+                        id: Date.now() + (index * 100) + i + Math.floor(Math.random() * 100000), // UNIQUE ID BACK FOR CARS
                         // Note: Removed 'date' field because it's missing in some DB schemas. 
                         // Using Supabase default created_at instead.
                         model: ((row["Марка"] || "") + " " + (row["Модель"] || "")).trim() || row["Номенклатура"] || "Noma'lum Avto",
