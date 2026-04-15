@@ -686,7 +686,7 @@ window.openOrderModal = () => {
         
         const rows = [];
         for(let i=0; i<qty; i++){
-                    rows.push({
+            rows.push({
                 id: Date.now() + Math.floor(Math.random() * 1000000),
                 model: model,
                 trim: '', fuel: '', color_ext: color, color_int: '',
@@ -703,146 +703,173 @@ window.openOrderModal = () => {
     });
 };
 
+
+// --- Yangi Transfer Modali (2-ustunli dizayn) ---
 window.openTransferModal = (sourceType) => {
     let availableCars = globalDB.cars.filter(c => c.status === sourceType);
-    let selectedTransferIds = []; // Local bucket
-
-    const uniqueModels = [...new Set(availableCars.map(c => c.model).filter(Boolean))].sort();
-    const uniqueTrims  = [...new Set(availableCars.map(c => c.trim).filter(Boolean))].sort();
-    const dealersOptions = globalDB.dealerships.map(d => `<option value="dealer_${d.id}">${d.name}</option>`).join('');
+    let transferSet = new Set(); // Tanlab olinganlar (ID'lar)
     
-    let destHtml = sourceType === 'ordered' ? `<option value="customs">Bojxona (Tamojnya) Ombori</option>` : dealersOptions;
     const sourceLabel = sourceType === 'ordered' ? 'Xitoy Buyurtmalari' : (sourceType === 'customs' ? 'Bojxona' : 'Ombor');
+    const dealersOptions = globalDB.dealerships.map(d => `<option value="dealer_${d.id}">${d.name}</option>`).join('');
+    let destHtml = sourceType === 'ordered' ? `<option value="customs">Bojxona (Tamojnya) Ombori</option>` : dealersOptions;
 
     const modalHtml = `
         <div class="modal-overlay" id="transfer-modal">
-            <div class="modal-content wide">
-                <div class="modal-header">
-                    <h3><i class="ph ph-arrows-left-right" style="color:var(--accent-primary); margin-right:8px;"></i>Avtomobillarni Ko'chirish</h3>
-                    <button class="close-btn" onclick="closeModal('transfer-modal')"><i class="ph ph-x"></i></button>
+            <div class="modal-content" style="max-width: 1100px; width: 95%; padding: 1.5rem;">
+                <div class="modal-header" style="margin-bottom: 1rem;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="background:var(--accent-primary); color:white; width:40px; height:40px; border-radius:10px; display:flex; justify-content:center; align-items:center;">
+                            <i class="ph ph-arrows-left-right" style="font-size:1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin:0; font-size:1.2rem;">Avtomobillarni Ko'chirish (Transfer)</h3>
+                            <p style="margin:0; font-size:0.8rem; color:var(--text-secondary);">Mavjud bazadan tanlab, ko'chirish ro'yxatiga qo'shing</p>
+                        </div>
+                    </div>
+                    <button class="close-btn" onclick="closeModal('transfer-modal')"><i class="ph-bold ph-x"></i></button>
                 </div>
-                
-                <form id="transfer-form">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom:1.5rem;">
-                        <div class="input-group">
-                            <label>Qayerdan (Manba)</label>
-                            <input type="text" value="${sourceLabel}" disabled style="background:#f1f5f9;">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom:1rem;">
+                    <div class="input-group">
+                        <label style="font-weight:700;">Qayerdan</label>
+                        <div style="padding:0.7rem; background:#f1f5f9; border-radius:var(--radius-sm); border:1px solid var(--border-color); font-weight:600;">
+                            <i class="ph ph-map-pin" style="margin-right:5px; color:var(--accent-primary);"></i> ${sourceLabel}
                         </div>
-                        <div class="input-group">
-                            <label>Qayerga yuborilsin? <span style="color:var(--danger)">*</span></label>
-                            <select id="tr-dest" required>
-                                <option value="">-- Manzilni tanlang --</option>
-                                ${destHtml}
-                            </select>
+                    </div>
+                    <div class="input-group">
+                        <label style="font-weight:700;">Qayerga yuborilsin? <span style="color:var(--danger)">*</span></label>
+                        <select id="tr-dest" style="height:45px; border-width:2px; border-color:var(--accent-primary);" required>
+                            <option value="">-- Manzilni tanlang --</option>
+                            ${destHtml}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="transfer-grid">
+                    <!-- CHAP TOMON: TANLANGANLAR (TRANSFER LIST) -->
+                    <div class="transfer-column">
+                        <div class="transfer-column-header" style="border-top: 3px solid #31a24c;">
+                            <span><i class="ph ph-shopping-cart" style="color:#31a24c;"></i> Ko'chirish ro'yxati</span>
+                            <span id="tr-selected-count" class="badge" style="background:rgba(49,162,76,0.1); color:#31a24c;">0 ta tanlandi</span>
+                        </div>
+                        <div class="transfer-list-box" id="tr-selected-list">
+                            <!-- JS orqali to'ldiriladi -->
+                            <div style="padding:40px; text-align:center; color:var(--text-muted);">
+                                <i class="ph ph-arrow-left" style="font-size:2rem; margin-bottom:10px;"></i>
+                                <p>O'ng tarafdan mashinalarni tanlang</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="transfer-grid">
-                        <!-- LEFT COLUMN: Selected (Bucket) -->
-                        <div class="transfer-column">
-                            <div class="transfer-column-header">
-                                <h4>Tanlanganlar (<span id="bucket-count">0</span>)</h4>
-                            </div>
-                            <div class="transfer-list-box" id="transfer-bucket-list">
-                                <div style="padding: 2rem; text-align: center; color: var(--text-muted);">Hali hech narsa tanlanmadi</div>
+                    <!-- O'NG TOMON: BAZA (AVAILABLE LIST) -->
+                    <div class="transfer-column">
+                        <div class="transfer-column-header">
+                            <span><i class="ph ph-database" style="color:var(--accent-primary);"></i> Mavjud Mashinalar</span>
+                            <div style="display:flex; gap:5px;">
+                                <input type="text" id="tr-local-search" placeholder="Qidirish (VIN, Model)..." 
+                                    style="padding:4px 8px; font-size:0.75rem; width:150px; border-radius:4px; border:1px solid var(--border-color);">
                             </div>
                         </div>
-
-                        <!-- RIGHT COLUMN: Available (Source) -->
-                        <div class="transfer-column">
-                            <div class="transfer-column-header">
-                                <h4>Mavjud Mashinalar</h4>
-                            </div>
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-bottom:0.8rem;">
-                                <select id="tr-filter-model" onchange="window._refreshTransferLists()" style="padding:0.5rem; font-size:0.8rem;">
-                                    <option value="">Barcha modellar</option>
-                                    ${uniqueModels.map(m => `<option value="${m}">${m}</option>`).join('')}
-                                </select>
-                                <input type="text" id="tr-search-vin" placeholder="VIN (4 raqam)..." oninput="window._refreshTransferLists()" style="padding:0.5rem; font-size:0.8rem;">
-                            </div>
-                            <div class="transfer-list-box" id="transfer-source-list"></div>
+                        <div class="transfer-list-box" id="tr-available-list">
+                            <!-- JS orqali to'ldiriladi -->
                         </div>
                     </div>
+                </div>
 
-                    ${sourceType === 'ordered' ? `
-                    <div class="input-group mt-4">
-                        <label>Bojxona/Kuryer xarajatlari ($) — <em>har bir</em> tanlangan avtomobil uchun</label>
-                        <input type="number" id="tr-extra-fee" placeholder="Masalan: 1200" required>
+                ${sourceType === 'ordered' ? `
+                <div style="margin-top:1rem; padding:1rem; background:#fffbeb; border:1px solid #fde68a; border-radius:var(--radius-md); display:flex; align-items:center; gap:15px;">
+                    <i class="ph ph-info" style="font-size:1.5rem; color:#d97706;"></i>
+                    <div style="flex:1;">
+                        <label style="font-size:0.85rem; font-weight:700; color:#92400e; display:block; margin-bottom:4px;">Bojxona xarajatlari va Yetkazish ($)</label>
+                        <input type="number" id="tr-extra-fee" placeholder="Masalan: 1500" style="padding:0.5rem; width:200px; height:36px;" required>
+                        <span style="font-size:0.75rem; color:#b45309; margin-left:10px;">* Barcha tanlangan mashinalarga qo'shiladi</span>
                     </div>
-                    ` : ''}
+                </div>
+                ` : ''}
 
-                    <div class="transfer-footer">
-                        <small style="color:var(--text-secondary)">* O'ng tarafdan tanlang, chap tarafdan kiring</small>
-                        <div class="flex-gap">
-                            <button type="button" class="btn btn-secondary" onclick="closeModal('transfer-modal')">Bekor qilish</button>
-                            <button type="submit" id="btn-submit-transfer" class="btn-confirm-transfer" disabled>
-                                Ko'chirishni Tasdiqlash
-                            </button>
-                        </div>
-                    </div>
-                </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('transfer-modal')" style="background:none; border:none; color:var(--text-secondary);">Bekor qilish</button>
+                    <button type="button" id="btn-execute-transfer" class="btn-transfer-confirm">
+                        <i class="ph-fill ph-check-circle"></i> Tasdiqlash va Ko'chirish
+                    </button>
+                </div>
             </div>
         </div>
     `;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-    // --- SUB-FUNCTIONS ---
-    window._refreshTransferLists = () => {
-        const bucketArea = document.getElementById('transfer-bucket-list');
-        const sourceArea = document.getElementById('transfer-source-list');
-        const modelFilter = document.getElementById('tr-filter-model').value;
-        const vinFilter = document.getElementById('tr-search-vin').value.toLowerCase();
+    // --- Modal ichki mantiqi ---
+    const renderModalLists = (searchTerm = '') => {
+        const selectedList = document.getElementById('tr-selected-list');
+        const availableList = document.getElementById('tr-available-list');
         
-        // 1. Render Bucket (Left)
-        const bucketCars = globalDB.cars.filter(c => selectedTransferIds.includes(c.id));
-        document.getElementById('bucket-count').textContent = bucketCars.length;
-        document.getElementById('btn-submit-transfer').disabled = bucketCars.length === 0;
-
-        if (bucketCars.length === 0) {
-            bucketArea.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-muted);">Hali hech narsa tanlanmadi</div>`;
+        // Selected column
+        const selectedData = Array.from(transferSet).map(id => availableCars.find(c => c.id === id)).filter(Boolean);
+        document.getElementById('tr-selected-count').textContent = selectedData.length + ' ta tanlandi';
+        
+        if (selectedData.length === 0) {
+            selectedList.innerHTML = `<div style="padding:40px; text-align:center; color:var(--text-muted);"><i class="ph ph-arrow-left" style="font-size:2rem; margin-bottom:10px;"></i><p>O'ng tarafdan mashinalarni tanlang</p></div>`;
         } else {
-            bucketArea.innerHTML = bucketCars.map(c => `
-                <div class="transfer-car-item">
-                    <div class="transfer-car-info">
-                        <strong>${c.model}</strong>
-                        <span>VIN: ${c.vin || '...'} | $${c.final_cost}</span>
+            selectedList.innerHTML = selectedData.map(c => `
+                <div class="transfer-item" style="border-left: 4px solid #31a24c;">
+                    <div class="transfer-item-info">
+                        <span class="transfer-item-title">${c.model}</span>
+                        <span class="transfer-item-sub">VIN: ${c.vin || 'Йўқ'} &bull; ${c.color_ext || ''}</span>
                     </div>
-                    <button type="button" class="btn-move btn-move-remove" onclick="window._trRemove(${c.id})">
-                        <i class="ph ph-minus"></i>
-                    </button>
+                    <button class="btn-transfer-remove" onclick="window._trAction(${c.id}, 'remove')"><i class="ph ph-minus"></i></button>
                 </div>
             `).join('');
         }
 
-        // 2. Render Source (Right)
-        let rightList = availableCars.filter(c => !selectedTransferIds.includes(c.id));
-        if (modelFilter) rightList = rightList.filter(c => c.model === modelFilter);
-        if (vinFilter) rightList = rightList.filter(c => (c.vin || '').toLowerCase().includes(vinFilter));
+        // Available column (minus selected)
+        let filtered = availableCars.filter(c => !transferSet.has(c.id));
+        if (searchTerm) {
+            filtered = filtered.filter(c => 
+                c.model.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                c.vin.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
 
-        if (rightList.length === 0) {
-            sourceArea.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--text-muted);">Hech narsa topilmadi</div>`;
+        if (filtered.length === 0) {
+            availableList.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-muted);">Mos mashinalar topilmadi</div>`;
         } else {
-            sourceArea.innerHTML = rightList.map(c => `
-                <div class="transfer-car-item">
-                    <div class="transfer-car-info">
-                        <strong>${c.model}</strong>
-                        <span>${c.trim || '-'} (${c.color_ext})</span>
+            availableList.innerHTML = filtered.map(c => `
+                <div class="transfer-item">
+                    <div class="transfer-item-info">
+                        <span class="transfer-item-title">${c.model}</span>
+                        <span class="transfer-item-sub">VIN: ${c.vin || 'Йўқ'} &bull; ${c.color_ext || ''}</span>
                     </div>
-                    <button type="button" class="btn-move btn-move-add" onclick="window._trAdd(${c.id})">
-                        <i class="ph ph-plus"></i>
-                    </button>
+                    <button class="btn-transfer-add" onclick="window._trAction(${c.id}, 'add')"><i class="ph ph-plus"></i></button>
                 </div>
             `).join('');
         }
     };
 
-    window._trAdd = (id) => { selectedTransferIds.push(id); window._refreshTransferLists(); };
-    window._trRemove = (id) => { selectedTransferIds = selectedTransferIds.filter(x => x !== id); window._refreshTransferLists(); };
+    window._trAction = (id, action) => {
+        if (action === 'add') transferSet.add(id);
+        else transferSet.delete(id);
+        renderModalLists(document.getElementById('tr-local-search').value);
+    };
 
-    window._refreshTransferLists();
+    document.getElementById('tr-local-search').addEventListener('input', (e) => {
+        renderModalLists(e.target.value);
+    });
 
-    document.getElementById('transfer-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
+    renderModalLists();
+
+    // Final Execute
+    document.getElementById('btn-execute-transfer').addEventListener('click', async () => {
+        const dest = document.getElementById('tr-dest').value;
+        if (!dest) { alert("Iltimos, yuborish manzilini tanlang!"); return; }
+        if (transferSet.size === 0) { alert("Ko'chirish uchun hech qanday mashina tanlanmadi!"); return; }
+
+        const btn = document.getElementById('btn-execute-transfer');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Ko\'chirilmoqda...';
+
+        const checkedIds = Array.from(transferSet);
+        if (dest === 'customs') {
+            const extra = parseFloat(document.getElementById('tr-extra-fee')?.value) || 0;
             for(let id of checkedIds) {
                 const c = globalDB.cars.find(x => x.id === id);
                 await _supabase.from('cars').update({
@@ -850,52 +877,18 @@ window.openTransferModal = (sourceType) => {
                     extra: extra, final_cost: (c.factory_price || 0) + extra
                 }).eq('id', id);
             }
-        } else if (dest.startsWith('dealer_')) {
-            updateData = { status: 'instock', location: dest };
-            const { error } = await _supabase.from('cars').update(updateData).in('id', checkedIds);
-            if(error) { alert("Xato: " + error.message); return; }
+        } else {
+            await _supabase.from('cars').update({ status: 'instock', location: dest }).in('id', checkedIds);
         }
 
         const destName = globalDB.dealerships.find(d => 'dealer_'+d.id === dest)?.name || dest;
         alert(`✅ ${checkedIds.length} ta avtomobil "${destName}" ga muvaffaqiyatli ko'chirildi!`);
         closeModal('transfer-modal');
         const viewMap = { ordered: 'orders', customs: 'customs', instock: 'inventory' };
-        await refreshDataAndRender(viewMap[source] || source);
+        await refreshDataAndRender(viewMap[sourceType] || sourceType);
     });
 };
 
-window.filterTransferCars = () => {
-    const vinTerm   = (document.getElementById('tr-search')?.value || '').trim().toLowerCase();
-    const modelTerm = (document.getElementById('tr-filter-model')?.value || '').toLowerCase();
-    const trimTerm  = (document.getElementById('tr-filter-trim')?.value || '').toLowerCase();
-
-    const rows = document.querySelectorAll('#tr-cars-list .tr-car-row');
-    rows.forEach(row => {
-        const rowVin   = (row.dataset.vin || '').toLowerCase();
-        const rowModel = (row.dataset.model || '').toLowerCase();
-        const rowTrim  = (row.dataset.trim || '').toLowerCase();
-
-        // VIN qidirish: oxirgi 4 ta belgiga mos kelishi YOKI to'liq qatorga mos kelishi
-        let vinMatch = true;
-        if (vinTerm) {
-            if (vinTerm.length <= 4) {
-                // Oxirgi N ta raqamlarni tekshiramiz
-                vinMatch = rowVin.endsWith(vinTerm);
-            } else {
-                // To'liq qidirish
-                vinMatch = rowVin.includes(vinTerm);
-            }
-        }
-
-        const modelMatch = !modelTerm || rowModel === modelTerm;
-        const trimMatch  = !trimTerm  || rowTrim === trimTerm;
-
-        const visible = vinMatch && modelMatch && trimMatch;
-        row.style.display = visible ? 'flex' : 'none';
-    });
-
-    window._trUpdateCount();
-}
 
 
 window.openSaleModal = (carId) => {
