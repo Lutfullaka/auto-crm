@@ -179,6 +179,7 @@ const renderView = (viewId) => {
         db.sales.forEach(s => {
             const dStr = s.date || s.created_at || new Date().toISOString();
             const d = new Date(dStr);
+            if (isNaN(d.getTime())) return; // Skip invalid dates
             const slot = last6Months.find(m => m.month === d.getMonth() && m.year === d.getFullYear());
             if (slot) { slot.count++; slot.revenue += parseFloat(s.price) || 0; }
         });
@@ -827,50 +828,57 @@ window.uploadExcel = (event, targetStatus) => {
             }
         }
 
-        // 3. BAZAGA YUKLASH
-        let hasError = false;
-        if (carsToInsert.length > 0) {
-            const { error: cError } = await _supabase.from('cars').insert(carsToInsert);
-            if(cError) {
-                console.error("Cars insert error:", cError);
-                alert("Mashinalarni saqlashda xato: " + cError.message);
-                hasError = true;
-            }
+        // 3. BAZAGA BO'LAKLAB YUKLASH (CHUNKED INSERT - 100 elements each)
+        const chunkSize = 100;
+        let totalInserted = 0;
+        let errors = [];
+
+        // --- a. Mashinalarni yuklash ---
+        for (let i = 0; i < carsToInsert.length; i += chunkSize) {
+            const chunk = carsToInsert.slice(i, i + chunkSize);
+            const { error: cErr } = await _supabase.from('cars').insert(chunk);
+            if (cErr) errors.push("Mashina yuklash (bo'lak " + (i/chunkSize + 1) + "): " + cErr.message);
+            else totalInserted += chunk.length;
         }
 
-        if (salesToInsert.length > 0 && !hasError) {
-            const { error: sError } = await _supabase.from('sales').insert(salesToInsert);
-            if(sError) {
-                alert("Sotuvlarni saqlashda xato: " + sError.message);
-                hasError = true;
+        // --- b. Sotuvlarni yuklash va Statuslarni O'zgartirish ---
+        for (let i = 0; i < salesToInsert.length; i += chunkSize) {
+            const chunk = salesToInsert.slice(i, i + chunkSize);
+            const { error: sError } = await _supabase.from('sales').insert(chunk);
+            
+            if (sError) {
+                errors.push("Sotuv yuklash (bo'lak " + (i/chunkSize + 1) + "): " + sError.message);
             } else {
-                // FAQAT SOTUVLAR MUVAFFARIYATLI YOZILGANDAN KEYIN MASHINALAR STATUSINI O'ZGARTIRAMIZ
+                totalInserted += chunk.length;
+                // FAQAT MUVAFFARIYATLI SOTUVLAR UCHUN MASHINA STATUSINI YANGILAYMIZ
                 if (targetStatus === 'sales') {
-                    for (const row of json) {
-                        const vin = row["VIN"] || row["ВИН"] || "";
-                        const car = globalDB.cars.find(c => c.vin === vin);
-                        if (car && car.status !== 'sold') {
-                             const dealerColName = "Retail/Dealer Name";
-                             const sName = (row[dealerColName] || "Asosiy Ombor").toString().trim();
-                             const dObj = globalDB.dealerships.find(d => d.name.toLowerCase() === sName.toLowerCase());
-                             const dealerId = dObj ? dObj.id : null;
-                             
-                             await _supabase.from('cars').update({ 
-                                 status: 'sold', 
-                                 location: 'dealer_' + dealerId,
-                                 price: parseFloat(row["Цена"]) || car.price
-                             }).eq('id', car.id);
-                        }
+                    const chunkVins = chunk.map(s => s.vin).filter(v => !!v);
+                    // Supabase 'in' operatoridan foydalanamiz (Bulk Update)
+                    await _supabase.from('cars').update({ 
+                        status: 'sold', 
+                        // Note: Location depends on dealer in the row, but for bulk we fallback or loop
+                    }).in('vin', chunkVins);
+                    
+                    // Lokatsiyani aniq dilerga biriktirish uchun qisqa loop
+                    for(const sRec of chunk) {
+                        const dObj = globalDB.dealerships.find(d => d.id === sRec.dealer_id);
+                        await _supabase.from('cars').update({ 
+                            location: 'dealer_' + sRec.dealer_id,
+                            price: parseFloat(sRec.price) || 0
+                        }).eq('vin', sRec.vin);
                     }
                 }
             }
         }
 
-        if (!hasError) {
-            alert(`Muvaffaqiyatli ${loadedCount} ta yozuv Excel dan qabul qilindi!`);
+        if (errors.length > 0) {
+            alert("Ba'zi muammolar yuz berdi:\n" + errors.join("\n"));
+        } else {
+            alert(`Muvaffaqiyatli ${totalInserted} ta yozuv bazaga yozildi!`);
         }
+        
         document.body.style.opacity = '1';
-        await refreshDataAndRender(targetStatus === 'ordered' ? 'orders' : (targetStatus === 'customs' ? 'customs' : 'inventory'));
+        await refreshDataAndRender('dashboard');
         event.target.value = ""; 
     };
     reader.readAsArrayBuffer(file);
