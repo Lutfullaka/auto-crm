@@ -41,26 +41,38 @@ const refreshDataAndRender = async (viewId) => {
 
 // --- Dastur Yuklanishi ---
 document.addEventListener('DOMContentLoaded', async () => {
-    await refreshDB(); // Boshida bazadan hamma ma'lumotni olib kelamiz
+    // 1. Zudlik bilan login formasi listenerini ulaymiz (Baza yuklanishini kutmasdan)
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-password').value;
+            
+            // Baza ichidan qidirish
+            let user = globalDB.users.find(u => u.email === email && u.password === pass);
 
-    const sessionUser = sessionStorage.getItem('active_user');
-    if (sessionUser) {
-        currentUser = JSON.parse(sessionUser);
-        showDashboard();
+            // ZAXIRA (FALLBACK): Agar bazada topilmasa yoki baza hali yuklanmagan bo'lsa
+            if (!user && email === 'admin@autocrm.uz' && pass === 'admin') {
+                user = { id: 999, name: 'Bosh Admin (Zaxira)', email: 'admin@autocrm.uz', role: 'admin' };
+            }
+
+            if (user) {
+                currentUser = user;
+                sessionStorage.setItem('active_user', JSON.stringify(user));
+                showDashboard();
+            } else {
+                alert("Email yoki Parol xato!");
+            }
+        });
     }
 
-    document.getElementById('login-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const pass = document.getElementById('login-password').value;
-        
-        const user = globalDB.users.find(u => u.email === email && u.password === pass);
-        if (user) {
-            currentUser = user;
-            sessionStorage.setItem('active_user', JSON.stringify(user));
+    // 2. Bazani orqa fonda yuklaymiz
+    refreshDB().then(() => {
+        const sessionUser = sessionStorage.getItem('active_user');
+        if (sessionUser) {
+            currentUser = JSON.parse(sessionUser);
             showDashboard();
-        } else {
-            alert("Email yoki Parol xato! (Yoki SQL kod ishlatilmagan)");
         }
     });
 
