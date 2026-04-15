@@ -742,8 +742,7 @@ window.uploadExcel = (event, targetStatus) => {
                     dealer_id: dealerId || 1,
                     payment_type: row["Pay method"] || "Noma'lum",
                     customer_name: row["Customer"] || "Noma'lum Mijoz",
-                    price: parseFloat(row["Цена"]) || 0,
-                    created_at: row["Date"] ? new Date(row["Date"]).toISOString() : new Date().toISOString()
+                    price: parseFloat(row["Цена"]) || 0
                 });
                 loadedCount++;
             } else {
