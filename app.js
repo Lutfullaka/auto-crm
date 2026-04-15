@@ -40,47 +40,45 @@ const refreshDB = async () => {
 
 // --- Tizimni Tozalash (Hammasini o'chirish) ---
 const wipeAllData = async () => {
+    console.log("Wipe attempt started...");
     if (!confirm("DIQQAT! Barcha mashinalar va sotuvlar butunlay o'chiriladi. Ushbu amalni qaytarib bo'lmaydi. Rozimisiz?")) return;
     
     try {
-        // 1. Sotuvlarni o'chirish
         const { error: sErr } = await _supabase.from('sales').delete().neq('id', 0);
-        // 2. Mashinalarni o'chirish
         const { error: cErr } = await _supabase.from('cars').delete().neq('id', 0);
         
         if (sErr || cErr) {
             alert("O'chirishda xatolik: " + (sErr?.message || cErr?.message));
         } else {
             alert("Barcha ma'lumotlar tozalandi!");
-            refreshDataAndRender('dashboard');
+            await refreshDataAndRender('dashboard');
         }
     } catch (err) {
         alert("Xatolik: " + err.message);
     }
 };
+window.wipeAllData = wipeAllData; // Attach to window!
 
 // --- Ma'lumotlarni Qayta Tiklash (Admin uchun maxsus funksiya) ---
 const recoverOrphanedCars = async () => {
+    console.log("Recovery attempt started...");
     if (!confirm("Sotuv hujjati bo'lmagan, lekin 'sotilgan' deb qolgan mashinalarni qaytarishni xohlaysizmi?")) return;
     
-    // 1. Bazadan 'sold' statusidagi mashinalarni olamiz
     const soldCars = globalDB.cars.filter(c => c.status === 'sold');
     let fixedCount = 0;
     
     for (const car of soldCars) {
-        // 2. Ushbu mashina uchun sotuv hujjati bormi?
         const hasSale = globalDB.sales.some(s => s.vin === car.vin || s.car_id === car.id);
-        
         if (!hasSale) {
-            // 3. 'Etim' mashinani 'instock' (Ombor)ga qaytaramiz
             const { error } = await _supabase.from('cars').update({ status: 'instock' }).eq('id', car.id);
             if (!error) fixedCount++;
         }
     }
     
     alert(`${fixedCount} ta 'etim' mashina omborga qaytarildi!`);
-    refreshDataAndRender('dashboard');
+    await refreshDataAndRender('dashboard');
 };
+window.recoverOrphanedCars = recoverOrphanedCars; // Attach to window!
 
 const refreshDataAndRender = async (viewId) => {
     // Show a small loader if we want, but Supabase is fast enough
