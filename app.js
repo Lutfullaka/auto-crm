@@ -1484,11 +1484,6 @@ window.processAnalyticsExcel = function(event) {
             return;
         }
 
-        // Ustun nomlarini aqlli qidirish funksiyasi
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
-
         // Column mapping based on Power BI image structure
         analyticsData = json.map(row => {
             const dealerKey = Object.keys(row).find(k => k.toLowerCase().includes('retail') || k.toLowerCase().includes('dealer') || k.toLowerCase().includes('sklad'));
@@ -1515,10 +1510,11 @@ window.processAnalyticsExcel = function(event) {
                 dealer: row[dealerKey] || "Noma'lum Diler",
                 brand: row[brandKey] || "Brend",
                 model: row[modelKey] || "Model",
-                fuel: row[fuelKey] || "Noma'lum",
-                sale_no_vat: salePrice,
-                cost_no_vat: costPrice,
-                margin: salePrice - costPrice
+                buyMethod: row[buyMethodKey] || "Boshqa",
+                margin_perc: parseFloat(row[marginKey]) || 0,
+                sale_price: parseFloat(row[saleKey]) || 0,
+                cost_price: parseFloat(row[costKey]) || 0,
+                margin_val: (parseFloat(row[saleKey]) || 0) - (parseFloat(row[costKey]) || 0)
             };
         });
 
