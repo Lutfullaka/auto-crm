@@ -534,3 +534,174 @@ tr:last-child td { border-bottom: none; }
     border-top: 1px solid var(--border-color);
 }
 
+/* COMPONENT: Analytics Dashboard (Power BI Style) */
+.analytics-container {
+    display: flex;
+    gap: 1.5rem;
+    height: auto;
+    min-height: calc(100vh - 8rem);
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+}
+
+.slicer-panel {
+    width: 240px;
+    flex-shrink: 0;
+    background: #ffffff;
+    border-right: 1px solid #e2e8f0;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.8rem;
+    overflow-y: auto;
+}
+
+.slicer-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.slicer-group h3 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 0.6rem;
+    margin-bottom: 0.4rem;
+}
+
+.slicer-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.slicer-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    transition: background 0.15s;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slicer-item:hover {
+    background: #f1f5f9;
+}
+
+.slicer-item input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: var(--accent-primary);
+}
+
+.dashboard-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0;
+}
+
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+}
+
+.kpi-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.kpi-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.kpi-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--accent-primary);
+}
+
+.kpi-trend {
+    font-size: 0.8rem;
+    margin-top: 0.4rem;
+    font-weight: 600;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: minmax(320px, auto);
+    gap: 1.5rem;
+}
+
+.chart-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.chart-container {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+}
+
+/* Power BI inspired proportions */
+.col-4 { grid-column: span 4; }
+.col-3 { grid-column: span 3; }
+.col-6 { grid-column: span 6; }
+.col-8 { grid-column: span 8; }
+.col-12 { grid-column: span 12; }
+
+/* Scrollbar styling */
+.slicer-options::-webkit-scrollbar,
+.scrollable::-webkit-scrollbar {
+    width: 5px;
+}
+.slicer-options::-webkit-scrollbar-thumb,
+.scrollable::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}

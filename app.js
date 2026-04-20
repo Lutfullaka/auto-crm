@@ -10,6 +10,9 @@ console.log("%c Auto-CRM v33 (Precision Sync) is running.", "color: #2ecc71; fon
 let currentUser = null;
 let globalDB = { users: [], dealerships: [], cars: [], sales: [], customers: [] };
 let selectedCars = new Set();
+let analyticsData = []; // Power BI Dashboard uchun asosiy ma'lumotlar
+let activeFilters = {}; // Srezlar (filtrlari) holati
+let charts = {}; // ApexCharts obyektlarini saqlash uchun
 
 // --- Bazani yangilash ---
 const refreshDB = async () => {
@@ -651,6 +654,90 @@ const renderView = (viewId) => {
                 </table>
             </div>
         `;
+    }
+    else if (viewId === 'analytics') {
+        html = `
+            <div class="view-header">
+                <div class="header-info">
+                    <h1>Power BI Dashboard <small style="font-size: 10px; color: #888;">(Interactive Tahlil)</small></h1>
+                    <p class="text-secondary">Kunlik "Ostatok & Prodaja" ma'lumotlari asosida</p>
+                </div>
+                <div class="flex-gap">
+                    <button class="btn btn-soft-blue" onclick="generateSampleExcelForUser()">
+                        <i class="ph ph-download-simple"></i> Namuna Excel
+                    </button>
+                    <label class="btn btn-primary" style="margin:0; cursor:pointer;">
+                        <i class="ph ph-file-arrow-up"></i> Excel Yuklash
+                        <input type="file" id="analytics-excel-upload" accept=".xlsx, .xls" class="hidden" onchange="processAnalyticsExcel(event)">
+                    </label>
+                </div>
+            </div>
+
+            <div class="analytics-container" id="analytics-root">
+                ${analyticsData.length === 0 ? `
+                    <div class="full-center" style="width:100%; height:400px; flex-direction:column; gap:1rem; opacity:0.6;">
+                        <i class="ph ph-chart-line-up" style="font-size:4rem; color:var(--accent-primary)"></i>
+                        <h3>Dashboard uchun ma'lumot yuklanmagan</h3>
+                        <p>Excel faylni yuklang va tahlilni boshlang</p>
+                    </div>
+                ` : `
+                    <!-- Sidebar Slicers (Power BI Style Filters) -->
+                    <aside class="slicer-panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <h3 style="margin:0; font-size: 0.85rem; color: #1e293b;"><i class="ph ph-funnel"></i> Filtrlar</h3>
+                            <button class="btn btn-soft-orange" style="padding:4px 8px; font-size:10px;" onclick="clearAllFilters()">Tozalash</button>
+                        </div>
+                        <div id="slicer-panel-content">
+                            <!-- Slicers will be injected here -->
+                        </div>
+                    </aside>
+
+                    <!-- Main Dashboard Area -->
+                    <div class="dashboard-main">
+                        <!-- KPI Row -->
+                        <div class="kpi-row" id="kpi-row">
+                            <!-- KPI Cards will be injected here -->
+                        </div>
+
+                        <!-- Charts Grid -->
+                        <div class="charts-grid">
+                            <!-- Pie Chart: Model Distribution -->
+                            <div class="chart-card col-4">
+                                <h3>Количество VIN по Model</h3>
+                                <div id="chart-pie-model" class="chart-container"></div>
+                            </div>
+
+                            <!-- Line Chart: Monthly Dynamic -->
+                            <div class="chart-card col-8">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                    <h3 style="margin:0;">Количество VIN по Oy va Yil</h3>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Sotilganlar soni</div>
+                                </div>
+                                <div id="chart-line-monthly" class="chart-container"></div>
+                            </div>
+
+                            <!-- Vertical Bar Chart: Model Distribution -->
+                            <div class="chart-card col-6">
+                                <h3>Количество VIN по Model (Distribution)</h3>
+                                <div id="chart-bar-model-dist" class="chart-container"></div>
+                            </div>
+
+                            <!-- Horizontal Bar Chart: Dealer Performance -->
+                            <div class="chart-card col-6">
+                                <h3>Количество VIN по Retail/Dealer Name</h3>
+                                <div id="chart-bar-dealer-performance" class="chart-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                `}
+            </div>
+        `;
+        
+        setTimeout(() => {
+            if (analyticsData.length > 0) {
+                initAnalyticsDashboard();
+            }
+        }, 50);
     }
 
     area.innerHTML = html;
@@ -1377,3 +1464,306 @@ window.closeModal = (id) => {
     const modal = document.getElementById(id);
     if(modal) modal.remove();
 }
+
+// --- POWER BI DASHBOARD LOGIC ---
+
+// 1. Excel Yuklash va Qayta ishlash (Robust Version)
+window.processAnalyticsExcel = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const sheetName = workbook.SheetNames[0];
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+        if (json.length === 0) {
+            alert("Excel fayl bo'sh!");
+            return;
+        }
+
+        // Ustun nomlarini aqlli qidirish funksiyasi
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        // Column mapping based on Power BI image structure
+        analyticsData = json.map(row => {
+            const dealerKey = Object.keys(row).find(k => k.toLowerCase().includes('retail') || k.toLowerCase().includes('dealer') || k.toLowerCase().includes('sklad'));
+            const dateKey = Object.keys(row).find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('sana') || k.toLowerCase().includes('prihoda'));
+            const modelKey = Object.keys(row).find(k => k.toLowerCase().includes('model'));
+            const brandKey = Object.keys(row).find(k => k.toLowerCase().includes('brand') || k.toLowerCase().includes('marka'));
+            const buyMethodKey = Object.keys(row).find(k => k.toLowerCase().includes('buy method') || k.toLowerCase().includes('pay method') || k.toLowerCase().includes('to\'lov'));
+            const marginKey = Object.keys(row).find(k => k.toLowerCase().includes('%') || k.toLowerCase().includes('marja') || k.toLowerCase().includes('margin'));
+            const costKey = Object.keys(row).find(k => k.toLowerCase().includes('cost') || k.toLowerCase().includes('sebest') || k.toLowerCase().includes('prixod narxi'));
+            const saleKey = Object.keys(row).find(k => k.toLowerCase().includes('narxi') || k.toLowerCase().includes('price') || k.toLowerCase().includes('fakt'));
+
+            let itemDate = new Date();
+            if (row[dateKey]) {
+                const d = row[dateKey];
+                itemDate = isNaN(d) ? new Date(d) : new Date((d - 25569) * 86400 * 1000);
+            }
+
+            const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+            const oyVaYil = isNaN(itemDate.getTime()) ? '-' : (monthNames[itemDate.getMonth()] + ' ' + itemDate.getFullYear());
+
+            return {
+                date: isNaN(itemDate.getTime()) ? new Date() : itemDate,
+                oyVaYil: oyVaYil,
+                dealer: row[dealerKey] || "Noma'lum Diler",
+                brand: row[brandKey] || "Brend",
+                model: row[modelKey] || "Model",
+                fuel: row[fuelKey] || "Noma'lum",
+                sale_no_vat: salePrice,
+                cost_no_vat: costPrice,
+                margin: salePrice - costPrice
+            };
+        });
+
+        activeFilters = {}; 
+        renderView('analytics'); 
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+// 2. Dashboardni Initsializatsiya qilish
+window.initAnalyticsDashboard = function() {
+    populateSlicers();
+    updateAnalyticsUI();
+};
+
+// 3. Srezlarni (Checkboxlar) dinamik to'ldirish
+function populateSlicers() {
+    const panel = document.getElementById('slicer-panel-content');
+    if (!panel) return;
+
+    // Power BI image order: Oy va Yil, Brand, Model, Buy method, Retail/Dealer Group
+    const categories = [
+        { key: 'oyVaYil', label: 'Oy va Yil' },
+        { key: 'brand', label: 'Brand' },
+        { key: 'model', label: 'Model' },
+        { key: 'buyMethod', label: 'Buy method' },
+        { key: 'dealer', label: 'Retail/Dealer Name' }
+    ];
+
+    let html = '';
+
+    categories.forEach(cat => {
+        const uniqueValues = [...new Set(analyticsData.map(item => item[cat.key]))].sort((a, b) => {
+            // Special sort for Oy va Yil
+            if (cat.key === 'oyVaYil') {
+                const months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+                const [m1, y1] = a.split(' ');
+                const [m2, y2] = b.split(' ');
+                if (y1 !== y2) return parseInt(y1) - parseInt(y2);
+                return months.indexOf(m1) - months.indexOf(m2);
+            }
+            return a.localeCompare(b);
+        });
+        
+        html += `
+            <div class="slicer-group">
+                <h3>${cat.label}</h3>
+                <div class="slicer-options">
+                    ${uniqueValues.map(val => {
+                        const isChecked = !activeFilters[cat.key] || activeFilters[cat.key].includes(val);
+                        return `
+                        <label class="slicer-item">
+                            <input type="checkbox" data-key="${cat.key}" data-value="${val}" 
+                                ${isChecked ? 'checked' : ''} 
+                                onchange="applySlicerFilter('${cat.key}', '${val}', this.checked)">
+                            <span>${val}</span>
+                        </label>`;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    });
+
+    panel.innerHTML = html;
+}
+
+// 4. Filtrlarni qo'llash
+window.applySlicerFilter = function(key, value, checked) {
+    if (!activeFilters[key]) activeFilters[key] = [];
+    
+    if (checked) {
+        if (!activeFilters[key].includes(value)) activeFilters[key].push(value);
+    } else {
+        activeFilters[key] = activeFilters[key].filter(v => v !== value);
+    }
+
+    if (activeFilters[key].length === 0) delete activeFilters[key];
+    
+    updateAnalyticsUI();
+};
+
+window.toggleSelectAll = function(key, checkbox) {
+    const checkboxes = document.querySelectorAll(`input[data-key="${key}"]`);
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        const val = cb.getAttribute('data-value');
+        if (checkbox.checked) {
+            if (!activeFilters[key]) activeFilters[key] = [];
+            if (!activeFilters[key].includes(val)) activeFilters[key].push(val);
+        } else {
+            if (activeFilters[key]) {
+                activeFilters[key] = activeFilters[key].filter(v => v !== val);
+            }
+        }
+    });
+    if (activeFilters[key] && activeFilters[key].length === 0) delete activeFilters[key];
+    updateAnalyticsUI();
+};
+
+window.clearAllFilters = function() {
+    activeFilters = {};
+    const checkboxes = document.querySelectorAll('.slicer-item input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateAnalyticsUI();
+};
+
+// 5. KPI va Chartlarni Yangilash
+window.updateAnalyticsUI = function() {
+    let filtered = analyticsData;
+
+    Object.keys(activeFilters).forEach(key => {
+        if (activeFilters[key] && activeFilters[key].length > 0) {
+            filtered = filtered.filter(item => activeFilters[key].includes(item[key]));
+        }
+    });
+
+    // Calculate Margin % like in image: 5.6% style
+    const totalSales = filtered.reduce((sum, item) => sum + item.sale_price, 0);
+    const totalCost = filtered.reduce((sum, item) => sum + item.cost_price, 0);
+    const totalMargin = totalSales - totalCost;
+    const avgMarginPerc = totalSales > 0 ? (totalMargin / totalSales) * 100 : 0;
+    
+    const kpiRow = document.getElementById('kpi-row');
+    if (kpiRow) {
+        kpiRow.innerHTML = `
+            <div class="kpi-card">
+                <div class="kpi-label">Маржа %</div>
+                <div class="kpi-value ${avgMarginPerc > 0 ? 'text-success' : 'text-danger'}">${avgMarginPerc.toFixed(1)}%</div>
+                <div class="kpi-trend" style="color:red">Маржа</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Количество VIN</div>
+                <div class="kpi-value">${filtered.length} ta</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Jami Savdo</div>
+                <div class="kpi-value text-accent">$${Math.round(totalSales).toLocaleString()}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Jami Foyda (Val)</div>
+                <div class="kpi-value" style="color:var(--success)">$${Math.round(totalMargin).toLocaleString()}</div>
+            </div>
+        `;
+    }
+
+    renderCharts(filtered);
+};
+
+// 6. ApexCharts Render (Precision Power BI match)
+function renderCharts(data) {
+    // Colors inspired by Power BI default
+    const colors = ['#0078d4', '#107c10', '#d13438', '#ffb900', '#0078d4', '#498205', '#038387', '#005a9e'];
+
+    // a. Pie Chart: Количество VIN по Model
+    const modelMap = {};
+    data.forEach(item => modelMap[item.model] = (modelMap[item.model] || 0) + 1);
+    const pieData = Object.entries(modelMap).sort((a,b) => b[1]-a[1]);
+
+    updateChart('pie-model', {
+        type: 'pie',
+        series: pieData.map(x => x[1]),
+        labels: pieData.map(x => x[0]),
+        colors: colors
+    });
+
+    // b. Line Chart: Количество VIN по Oy va Yil
+    const monthlyMap = {};
+    data.forEach(item => {
+        monthlyMap[item.oyVaYil] = (monthlyMap[item.oyVaYil] || 0) + 1;
+    });
+    // Sort by Date properly
+    const months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+    const sortedTimeline = Object.keys(monthlyMap).sort((a, b) => {
+        const [m1, y1] = a.split(' ');
+        const [m2, y2] = b.split(' ');
+        if (y1 !== y2) return parseInt(y1) - parseInt(y2);
+        return months.indexOf(m1) - months.indexOf(m2);
+    });
+
+    updateChart('line-monthly', {
+        type: 'line',
+        series: [{ name: 'VIN Soni', data: sortedTimeline.map(d => monthlyMap[d]) }],
+        categories: sortedTimeline,
+        colors: ['#0078d4'],
+        markers: { size: 5 }
+    });
+
+    // c. Vertical Bar: Model Distribution
+    updateChart('bar-model-dist', {
+        type: 'bar',
+        series: [{ name: 'VIN Soni', data: pieData.map(x => x[1]) }],
+        categories: pieData.map(x => x[0]),
+        colors: ['#0078d4'],
+        horizontal: false
+    });
+
+    // d. Horizontal Bar: Dealer Performance
+    const dealerMap = {};
+    data.forEach(item => dealerMap[item.dealer] = (dealerMap[item.dealer] || 0) + 1);
+    const dealerData = Object.entries(dealerMap).sort((a,b) => b[1]-a[1]);
+
+    updateChart('bar-dealer-performance', {
+        type: 'bar',
+        series: [{ name: 'VIN Soni', data: dealerData.map(x => x[1]) }],
+        categories: dealerData.map(x => x[0]),
+        colors: ['#107c10'],
+        horizontal: true
+    });
+}
+
+function updateChart(chartId, config) {
+    const el = document.getElementById(`chart-${chartId}`);
+    if (!el) return;
+
+    const options = {
+        chart: { type: config.type, height: '100%', toolbar: {show:false}, animations: {enabled: true} },
+        series: config.series,
+        labels: config.labels,
+        xaxis: { categories: config.categories },
+        colors: config.colors,
+        plotOptions: { bar: { horizontal: config.horizontal || false, borderRadius: 4 } },
+        dataLabels: { enabled: false },
+        legend: { position: 'bottom', fontSize: '11px' }
+    };
+
+    if (charts[chartId]) {
+        charts[chartId].updateOptions(options);
+    } else {
+        charts[chartId] = new ApexCharts(el, options);
+        charts[chartId].render();
+    }
+}
+
+// 7. Test uchun Namuna Fayl yaratish
+window.generateSampleExcelForUser = function() {
+    const data = [
+        {"Date": "2024-04-10", "Retail Name": "Toshkent City", "Sales Manager": "Azamat", "Brand": "BYD", "Model": "Song Plus", "Buy method": "Kredit", "Price": 32000, "Cost": 28000, "Margin %": 12.5},
+        {"Date": "2024-04-11", "Retail Name": "Samarqand Diler", "Sales Manager": "Olim", "Brand": "BYD", "Model": "Chazor", "Buy method": "Naqd", "Price": 25000, "Cost": 21000, "Margin %": 16},
+        {"Date": "2024-04-12", "Retail Name": "Toshkent City", "Sales Manager": "Azamat", "Brand": "Leapmotor", "Model": "C11", "Buy method": "Kredit", "Price": 38000, "Cost": 33000, "Margin %": 13.1},
+        {"Date": "2025-08-13", "Retail Name": "Farg'ona Avto", "Sales Manager": "Jasur", "Brand": "AION", "Model": "V", "Buy method": "Naqd", "Price": 31500, "Cost": 27500, "Margin %": 12.7},
+        {"Date": "2025-08-14", "Retail Name": "Trend Premium Motors", "Sales Manager": "Azamat", "Brand": "LEAPMOTOR", "Model": "C16", "Buy method": "Buy Out", "Price": 42000, "Cost": 37000, "Margin %": 11.9}
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "PowerBIData");
+    XLSX.writeFile(wb, "PowerBI_Export_Test.xlsx");
+};

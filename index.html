@@ -16,7 +16,9 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- jsPDF for Shartnoma/Chek -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link rel="stylesheet" href="styles.css?v=33">
+    <!-- ApexCharts for Power BI Dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="stylesheet" href="styles.css?v=34">
 </head>
 <body class="light-theme">
     
@@ -72,11 +74,14 @@
                     <a href="#" class="nav-item active" data-view="dashboard">
                         <i class="ph ph-squares-four"></i> Asosiy panel
                     </a>
+                    <a href="#" class="nav-item" data-view="analytics">
+                        <i class="ph-fill ph-chart-pie-slice" style="color:var(--accent-primary)"></i> Tahlil (Analytics)
+                    </a>
                     <a href="#" class="nav-item" data-view="orders">
                         <i class="ph ph-globe-hemisphere-east"></i> В пути
                     </a>
                     <a href="#" class="nav-item" data-view="customs">
-                        <i class="ph ph-truck"></i> На таможне
+                        <i class="ph ph-truck"></i> На таможne
                     </a>
                     <a href="#" class="nav-item" data-view="inventory">
                         <i class="ph ph-garage"></i> В наличие
@@ -115,6 +120,6 @@
         </main>
     </div>
 
-    <script src="app.js?v=33"></script>
+    <script src="app.js?v=34"></script>
 </body>
 </html>
