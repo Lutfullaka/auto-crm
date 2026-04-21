@@ -1760,23 +1760,32 @@ function updateChart(chartId, config) {
     const el = document.getElementById(`chart-${chartId}`);
     if (!el) return;
 
+    if (charts[chartId]) {
+        charts[chartId].destroy();
+    }
+
     const options = {
         chart: { type: config.type, height: '100%', toolbar: {show:false}, animations: {enabled: true} },
         series: config.series,
-        labels: config.labels,
-        xaxis: { categories: config.categories },
         colors: config.colors,
-        plotOptions: { bar: { horizontal: config.horizontal || false, borderRadius: 4 } },
         dataLabels: { enabled: false },
         legend: { position: 'bottom', fontSize: '11px' }
     };
 
-    if (charts[chartId]) {
-        charts[chartId].updateOptions(options);
-    } else {
-        charts[chartId] = new ApexCharts(el, options);
-        charts[chartId].render();
+    if (config.labels) {
+        options.labels = config.labels;
     }
+    
+    if (config.categories) {
+        options.xaxis = { categories: config.categories };
+    }
+
+    if (config.type === 'bar') {
+        options.plotOptions = { bar: { horizontal: config.horizontal || false, borderRadius: 4 } };
+    }
+
+    charts[chartId] = new ApexCharts(el, options);
+    charts[chartId].render();
 }
 
 // 7. Test uchun Namuna Fayl yaratish
