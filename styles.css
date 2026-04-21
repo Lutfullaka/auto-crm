@@ -603,7 +603,7 @@ tr:last-child td { border-bottom: none; }
     background: #f1f5f9;
 }
 
-.slicer-item input[type="checkbox"] {
+.slicer-item input[type="radio"] {
     width: 15px;
     height: 15px;
     cursor: pointer;

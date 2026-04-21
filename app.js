@@ -1484,39 +1484,60 @@ window.processAnalyticsExcel = function(event) {
             return;
         }
 
-        // Column mapping based on Power BI image structure
-        analyticsData = json.map(row => {
-            const dealerKey = Object.keys(row).find(k => k.toLowerCase().includes('retail') || k.toLowerCase().includes('dealer') || k.toLowerCase().includes('sklad'));
-            const dateKey = Object.keys(row).find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('sana') || k.toLowerCase().includes('prihoda'));
-            const modelKey = Object.keys(row).find(k => k.toLowerCase().includes('model'));
-            const brandKey = Object.keys(row).find(k => k.toLowerCase().includes('brand') || k.toLowerCase().includes('marka'));
-            const buyMethodKey = Object.keys(row).find(k => k.toLowerCase().includes('buy method') || k.toLowerCase().includes('pay method') || k.toLowerCase().includes('to\'lov'));
-            const marginKey = Object.keys(row).find(k => k.toLowerCase().includes('%') || k.toLowerCase().includes('marja') || k.toLowerCase().includes('margin'));
-            const costKey = Object.keys(row).find(k => k.toLowerCase().includes('cost') || k.toLowerCase().includes('sebest') || k.toLowerCase().includes('prixod narxi'));
-            const saleKey = Object.keys(row).find(k => k.toLowerCase().includes('narxi') || k.toLowerCase().includes('price') || k.toLowerCase().includes('fakt'));
+        // Ustun nomlarini aqlli qidirish funksiyasi
+        const parseSheet = (sheetName, typeLabel) => {
+            if (!workbook.Sheets[sheetName]) return [];
+            const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+            return json.map(row => {
+                const dealerKey = Object.keys(row).find(k => k.toLowerCase().includes('retail') || k.toLowerCase().includes('dealer') || k.toLowerCase().includes('sklad') || k.toLowerCase().includes('diler'));
+                const dateKey = Object.keys(row).find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('sana') || k.toLowerCase().includes('prihoda'));
+                const modelKey = Object.keys(row).find(k => k.toLowerCase().includes('model'));
+                const brandKey = Object.keys(row).find(k => k.toLowerCase().includes('brand') || k.toLowerCase().includes('marka'));
+                const buyMethodKey = Object.keys(row).find(k => k.toLowerCase().includes('buy method') || k.toLowerCase().includes('pay method') || k.toLowerCase().includes('to\'lov'));
+                const costKey = Object.keys(row).find(k => k.toLowerCase().includes('cost') || k.toLowerCase().includes('себест') || k.toLowerCase().includes('prixod narxi'));
+                const saleKey = Object.keys(row).find(k => k.toLowerCase().includes('narxi') || k.toLowerCase().includes('price') || k.toLowerCase().includes('продажа') || k.toLowerCase().includes('fakt'));
+                const fuelKey = Object.keys(row).find(k => k.toLowerCase().includes('ev/rev') || k.toLowerCase().includes('fuel') || k.toLowerCase().includes('topliva'));
 
-            let itemDate = new Date();
-            if (row[dateKey]) {
-                const d = row[dateKey];
-                itemDate = isNaN(d) ? new Date(d) : new Date((d - 25569) * 86400 * 1000);
-            }
+                let itemDate = new Date();
+                if (row[dateKey]) {
+                    const d = row[dateKey];
+                    itemDate = isNaN(d) ? new Date(d) : new Date((d - 25569) * 86400 * 1000);
+                }
 
-            const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
-            const oyVaYil = isNaN(itemDate.getTime()) ? '-' : (monthNames[itemDate.getMonth()] + ' ' + itemDate.getFullYear());
+                const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+                const oyVaYil = isNaN(itemDate.getTime()) ? '-' : (monthNames[itemDate.getMonth()] + ' ' + itemDate.getFullYear());
 
-            return {
-                date: isNaN(itemDate.getTime()) ? new Date() : itemDate,
-                oyVaYil: oyVaYil,
-                dealer: row[dealerKey] || "Noma'lum Diler",
-                brand: row[brandKey] || "Brend",
-                model: row[modelKey] || "Model",
-                buyMethod: row[buyMethodKey] || "Boshqa",
-                margin_perc: parseFloat(row[marginKey]) || 0,
-                sale_price: parseFloat(row[saleKey]) || 0,
-                cost_price: parseFloat(row[costKey]) || 0,
-                margin_val: (parseFloat(row[saleKey]) || 0) - (parseFloat(row[costKey]) || 0)
-            };
-        });
+                const sale = parseFloat(row[saleKey]) || 0;
+                const cost = parseFloat(row[costKey]) || 0;
+                let marginPerc = 0;
+                if (sale > 0) {
+                    marginPerc = ((sale - cost) / sale) * 100;
+                }
+
+                return {
+                    _type: typeLabel, 
+                    date: isNaN(itemDate.getTime()) ? new Date() : itemDate,
+                    oyVaYil: oyVaYil,
+                    dealer: row[dealerKey] || "Noma'lum Diler",
+                    brand: row[brandKey] || "Brend",
+                    model: row[modelKey] || "Model",
+                    buyMethod: row[buyMethodKey] || "Boshqa",
+                    fuel: row[fuelKey] || "Noma'lum",
+                    sale_price: sale,
+                    cost_price: cost,
+                    margin_perc: marginPerc
+                };
+            });
+        };
+
+        const prodaji = parseSheet('Продажи', 'sold');
+        const ostatok = parseSheet('Остаток', 'stock');
+        
+        analyticsData = [...prodaji, ...ostatok];
+        if (analyticsData.length === 0) {
+            alert('Excel faylida "Продажи" yoki "Остаток" vkladkalari topilmadi! Iltimos vkladka yozuvlarini to\'g\'rilang.');
+            return;
+        }
 
         activeFilters = {}; 
         renderView('analytics'); 
@@ -1564,12 +1585,12 @@ function populateSlicers() {
                 <h3>${cat.label}</h3>
                 <div class="slicer-options">
                     ${uniqueValues.map(val => {
-                        const isChecked = !activeFilters[cat.key] || activeFilters[cat.key].includes(val);
+                        const isChecked = activeFilters[cat.key] === val;
                         return `
                         <label class="slicer-item">
-                            <input type="checkbox" data-key="${cat.key}" data-value="${val}" 
+                            <input type="radio" name="slicer_${cat.key}" data-key="${cat.key}" data-value="${val}" 
                                 ${isChecked ? 'checked' : ''} 
-                                onchange="applySlicerFilter('${cat.key}', '${val}', this.checked)">
+                                onclick="applySlicerFilter('${cat.key}', '${val}', this)">
                             <span>${val}</span>
                         </label>`;
                     }).join('')}
@@ -1582,16 +1603,15 @@ function populateSlicers() {
 }
 
 // 4. Filtrlarni qo'llash
-window.applySlicerFilter = function(key, value, checked) {
-    if (!activeFilters[key]) activeFilters[key] = [];
-    
-    if (checked) {
-        if (!activeFilters[key].includes(value)) activeFilters[key].push(value);
+window.applySlicerFilter = function(key, value, radioEl) {
+    if (activeFilters[key] === value) {
+        // Agar tanlangan bo'lsa, tanlovni olib tashlaymiz
+        delete activeFilters[key];
+        radioEl.checked = false;
     } else {
-        activeFilters[key] = activeFilters[key].filter(v => v !== value);
+        // Yangi tanlov o'rnatamiz
+        activeFilters[key] = value;
     }
-
-    if (activeFilters[key].length === 0) delete activeFilters[key];
     
     updateAnalyticsUI();
 };
@@ -1626,36 +1646,38 @@ window.updateAnalyticsUI = function() {
     let filtered = analyticsData;
 
     Object.keys(activeFilters).forEach(key => {
-        if (activeFilters[key] && activeFilters[key].length > 0) {
-            filtered = filtered.filter(item => activeFilters[key].includes(item[key]));
+        if (activeFilters[key]) {
+            filtered = filtered.filter(item => item[key] === activeFilters[key]);
         }
     });
 
-    // Calculate Margin % like in image: 5.6% style
-    const totalSales = filtered.reduce((sum, item) => sum + item.sale_price, 0);
-    const totalCost = filtered.reduce((sum, item) => sum + item.cost_price, 0);
-    const totalMargin = totalSales - totalCost;
-    const avgMarginPerc = totalSales > 0 ? (totalMargin / totalSales) * 100 : 0;
+    const salesData = filtered.filter(f => f._type === 'sold');
+    const stockData = filtered.filter(f => f._type === 'stock');
     
+    let avgMarginPerc = 0;
+    if (salesData.length > 0) {
+        avgMarginPerc = salesData.reduce((sum, item) => sum + item.margin_perc, 0) / salesData.length;
+    }
+
     const kpiRow = document.getElementById('kpi-row');
     if (kpiRow) {
         kpiRow.innerHTML = `
             <div class="kpi-card">
-                <div class="kpi-label">Маржа %</div>
+                <div class="kpi-label">O'rtacha Marja (Sotuvda)</div>
                 <div class="kpi-value ${avgMarginPerc > 0 ? 'text-success' : 'text-danger'}">${avgMarginPerc.toFixed(1)}%</div>
-                <div class="kpi-trend" style="color:red">Маржа</div>
+                <div class="kpi-trend" style="color:var(--text-secondary)">ФП от продаж</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Количество VIN</div>
-                <div class="kpi-value">${filtered.length} ta</div>
+                <div class="kpi-label">Количество (Продажи)</div>
+                <div class="kpi-value text-accent">${salesData.length} та VIN</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Jami Savdo</div>
-                <div class="kpi-value text-accent">$${Math.round(totalSales).toLocaleString()}</div>
+                <div class="kpi-label">Количество (Остаток)</div>
+                <div class="kpi-value text-warning">${stockData.length} та VIN</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Jami Foyda (Val)</div>
-                <div class="kpi-value" style="color:var(--success)">$${Math.round(totalMargin).toLocaleString()}</div>
+                <div class="kpi-label">Все Авто (Жами)</div>
+                <div class="kpi-value">${filtered.length} та VIN</div>
             </div>
         `;
     }
@@ -1665,10 +1687,10 @@ window.updateAnalyticsUI = function() {
 
 // 6. ApexCharts Render (Precision Power BI match)
 function renderCharts(data) {
-    // Colors inspired by Power BI default
-    const colors = ['#0078d4', '#107c10', '#d13438', '#ffb900', '#0078d4', '#498205', '#038387', '#005a9e'];
+    const salesData = data.filter(d => d._type === 'sold');
+    const stockData = data.filter(d => d._type === 'stock');
 
-    // a. Pie Chart: Количество VIN по Model
+    // a. Pie Chart: Model Distribution (Jami VIN)
     const modelMap = {};
     data.forEach(item => modelMap[item.model] = (modelMap[item.model] || 0) + 1);
     const pieData = Object.entries(modelMap).sort((a,b) => b[1]-a[1]);
@@ -1677,52 +1699,61 @@ function renderCharts(data) {
         type: 'pie',
         series: pieData.map(x => x[1]),
         labels: pieData.map(x => x[0]),
-        colors: colors
+        colors: ['#0078d4', '#107c10', '#d13438', '#ffb900', '#0078d4', '#498205', '#038387', '#005a9e']
     });
+    document.getElementById('chart-pie-model').previousElementSibling.innerHTML = "Количество VIN по Model <span style='font-size:10px; color:#888'>(Продажа + Остаток)</span>";
 
-    // b. Line Chart: Количество VIN по Oy va Yil
-    const monthlyMap = {};
+    // b. Line Chart / Bar Combo: Продажа va Остаток by Model
+    const compareMap = {};
     data.forEach(item => {
-        monthlyMap[item.oyVaYil] = (monthlyMap[item.oyVaYil] || 0) + 1;
+        if (!compareMap[item.model]) compareMap[item.model] = { sold: 0, stock: 0 };
+        if (item._type === 'sold') compareMap[item.model].sold++;
+        else compareMap[item.model].stock++;
     });
-    // Sort by Date properly
-    const months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
-    const sortedTimeline = Object.keys(monthlyMap).sort((a, b) => {
-        const [m1, y1] = a.split(' ');
-        const [m2, y2] = b.split(' ');
-        if (y1 !== y2) return parseInt(y1) - parseInt(y2);
-        return months.indexOf(m1) - months.indexOf(m2);
-    });
+    const modelNames = Object.keys(compareMap).sort();
 
     updateChart('line-monthly', {
-        type: 'line',
-        series: [{ name: 'VIN Soni', data: sortedTimeline.map(d => monthlyMap[d]) }],
-        categories: sortedTimeline,
-        colors: ['#0078d4'],
-        markers: { size: 5 }
+        type: 'bar',
+        series: [
+            { name: 'Продажи', data: modelNames.map(m => compareMap[m].sold) },
+            { name: 'Остаток', data: modelNames.map(m => compareMap[m].stock) }
+        ],
+        categories: modelNames,
+        colors: ['#0078d4', '#d13438']
     });
+    document.getElementById('chart-line-monthly').previousElementSibling.innerHTML = "<h3 style='margin:0;'>Количество VIN по Model (Продажа vs Остаток)</h3>";
 
-    // c. Vertical Bar: Model Distribution
+    // c. Vertical Bar: O'rtacha Marja (Faqat Sotuv)
+    const marginMap = {};
+    salesData.forEach(item => {
+        if (!marginMap[item.model]) marginMap[item.model] = { sum: 0, count: 0 };
+        marginMap[item.model].sum += item.margin_perc;
+        marginMap[item.model].count++;
+    });
+    const marginData = Object.entries(marginMap).map(x => [x[0], x[1].sum / x[1].count]).sort((a,b) => b[1]-a[1]);
+
     updateChart('bar-model-dist', {
         type: 'bar',
-        series: [{ name: 'VIN Soni', data: pieData.map(x => x[1]) }],
-        categories: pieData.map(x => x[0]),
-        colors: ['#0078d4'],
+        series: [{ name: 'Маржа %', data: marginData.map(x => parseFloat(x[1].toFixed(1))) }],
+        categories: marginData.map(x => x[0]),
+        colors: ['#107c10'],
         horizontal: false
     });
+    document.getElementById('chart-bar-model-dist').previousElementSibling.innerHTML = "Средняя маржа по Model <span style='font-size:10px; color:#888'>(Только Продажи)</span>";
 
-    // d. Horizontal Bar: Dealer Performance
+    // d. Horizontal Bar: Dealer Performance (Faqat Sotuv)
     const dealerMap = {};
-    data.forEach(item => dealerMap[item.dealer] = (dealerMap[item.dealer] || 0) + 1);
+    salesData.forEach(item => dealerMap[item.dealer] = (dealerMap[item.dealer] || 0) + 1);
     const dealerData = Object.entries(dealerMap).sort((a,b) => b[1]-a[1]);
 
     updateChart('bar-dealer-performance', {
         type: 'bar',
         series: [{ name: 'VIN Soni', data: dealerData.map(x => x[1]) }],
         categories: dealerData.map(x => x[0]),
-        colors: ['#107c10'],
+        colors: ['#038387'],
         horizontal: true
     });
+    document.getElementById('chart-bar-dealer-performance').previousElementSibling.innerHTML = "Количество VIN по Retail/Dealer Name <span style='font-size:10px; color:#888'>(Продажи)</span>";
 }
 
 function updateChart(chartId, config) {
@@ -1750,16 +1781,19 @@ function updateChart(chartId, config) {
 
 // 7. Test uchun Namuna Fayl yaratish
 window.generateSampleExcelForUser = function() {
-    const data = [
-        {"Date": "2024-04-10", "Retail Name": "Toshkent City", "Sales Manager": "Azamat", "Brand": "BYD", "Model": "Song Plus", "Buy method": "Kredit", "Price": 32000, "Cost": 28000, "Margin %": 12.5},
-        {"Date": "2024-04-11", "Retail Name": "Samarqand Diler", "Sales Manager": "Olim", "Brand": "BYD", "Model": "Chazor", "Buy method": "Naqd", "Price": 25000, "Cost": 21000, "Margin %": 16},
-        {"Date": "2024-04-12", "Retail Name": "Toshkent City", "Sales Manager": "Azamat", "Brand": "Leapmotor", "Model": "C11", "Buy method": "Kredit", "Price": 38000, "Cost": 33000, "Margin %": 13.1},
-        {"Date": "2025-08-13", "Retail Name": "Farg'ona Avto", "Sales Manager": "Jasur", "Brand": "AION", "Model": "V", "Buy method": "Naqd", "Price": 31500, "Cost": 27500, "Margin %": 12.7},
-        {"Date": "2025-08-14", "Retail Name": "Trend Premium Motors", "Sales Manager": "Azamat", "Brand": "LEAPMOTOR", "Model": "C16", "Buy method": "Buy Out", "Price": 42000, "Cost": 37000, "Margin %": 11.9}
+    const soldData = [
+        {"Date": "2024-04-10", "Retail Name": "Toshkent City", "Brand": "BYD", "Model": "Song Plus", "Buy method": "Kredit", "Продажа": 32000, "Себест": 28000, "EV/REV": "EV"},
+        {"Date": "2024-04-11", "Retail Name": "Samarqand Diler", "Brand": "BYD", "Model": "Chazor", "Buy method": "Naqd", "Продажа": 25000, "Себест": 21000, "EV/REV": "PHEV"},
+        {"Date": "2024-04-12", "Retail Name": "Toshkent City", "Brand": "Leapmotor", "Model": "C11", "Buy method": "Kredit", "Продажа": 38000, "Себест": 33000, "EV/REV": "EV"}
+    ];
+    
+    const stockData = [
+        {"Date": "2024-04-13", "Retail Name": "Farg'ona Avto", "Brand": "AION", "Model": "V", "Buy method": "Naqd", "Продажа": 31500, "Себест": 27500, "EV/REV": "EV"},
+        {"Date": "2024-04-14", "Retail Name": "Trend Premium Motors", "Brand": "LEAPMOTOR", "Model": "C16", "Buy method": "Buy Out", "Продажа": 42000, "Себест": 37000, "EV/REV": "EV"}
     ];
 
-    const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "PowerBIData");
-    XLSX.writeFile(wb, "PowerBI_Export_Test.xlsx");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(soldData), "Продажи");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stockData), "Остаток");
+    XLSX.writeFile(wb, "AutoCRM_MultiSheet_Test.xlsx");
 };
